@@ -59,6 +59,21 @@
             color: var(--grca-primary);
             font-weight: 600;
         }
+        .table th {
+            cursor: pointer;
+            user-select: none;
+        }
+        .table th:hover {
+            background-color: #3a7ab8;
+        }
+        .table th.sort-asc::after {
+            content: " ▲";
+            font-size: 0.7em;
+        }
+        .table th.sort-desc::after {
+            content: " ▼";
+            font-size: 0.7em;
+        }
     </style>
 </head>
 <body>
@@ -133,6 +148,7 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Format timestamps
             document.querySelectorAll('td.timestamp').forEach(function(td) {
                 const timestamp = td.getAttribute('data-timestamp');
                 if (timestamp) {
@@ -141,6 +157,46 @@
                         td.textContent = date.toLocaleString();
                     }
                 }
+            });
+
+            // Table sorting
+            document.querySelectorAll('table').forEach(function(table) {
+                const headers = table.querySelectorAll('th');
+                headers.forEach(function(header, columnIndex) {
+                    header.addEventListener('click', function() {
+                        const tbody = table.querySelector('tbody');
+                        const rows = Array.from(tbody.querySelectorAll('tr'));
+                        const currentOrder = header.classList.contains('sort-asc') ? 'desc' : 'asc';
+                        
+                        // Remove sort classes from all headers
+                        headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                        
+                        // Add sort class to clicked header
+                        header.classList.add('sort-' + currentOrder);
+                        
+                        // Sort rows
+                        rows.sort(function(a, b) {
+                            let aVal = a.cells[columnIndex].textContent.trim();
+                            let bVal = b.cells[columnIndex].textContent.trim();
+                            
+                            // Try numeric comparison
+                            const aNum = parseFloat(aVal);
+                            const bNum = parseFloat(bVal);
+                            
+                            if (!isNaN(aNum) && !isNaN(bNum)) {
+                                return currentOrder === 'asc' ? aNum - bNum : bNum - aNum;
+                            }
+                            
+                            // String comparison
+                            return currentOrder === 'asc' 
+                                ? aVal.localeCompare(bVal) 
+                                : bVal.localeCompare(aVal);
+                        });
+                        
+                        // Re-append rows in sorted order
+                        rows.forEach(row => tbody.appendChild(row));
+                    });
+                });
             });
         });
     </script>
