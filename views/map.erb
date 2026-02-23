@@ -88,7 +88,7 @@
                             <button type="button" class="btn btn-outline-primary btn-sm active" id="btn-osm" onclick="switchMap('osm')">OpenStreetMap</button>
                             <button type="button" class="btn btn-outline-primary btn-sm" id="btn-google" onclick="switchMap('google')">Google Maps</button>
                         </div>
-                        <a href="/" class="btn btn-primary btn-sm">← Back</a>
+                        <a href="<%= url_for('/') %>" class="btn btn-primary btn-sm">← Back</a>
                     </div>
                 </div>
             </div>
@@ -101,6 +101,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const stations = <%= @stations.to_json %>;
+        const basePath = "<%= request.env['SCRIPT_NAME'] || '' %>";
         let currentMap = 'osm';
         let leafletMap = null;
         let googleMap = null;
@@ -144,7 +145,7 @@
                             <div class="station-popup">
                                 <h6>${station.name}</h6>
                                 <p class="mb-1"><small>Station: ${station.station_no}</small></p>
-                                <a href="/station?station=${encodeURIComponent(station.name)}">View Details →</a>
+                                <a href="${basePath}/station?station=${encodeURIComponent(station.name)}">View Details →</a>
                             </div>
                         `);
                     markers.push(marker);
@@ -197,7 +198,7 @@
                             <div style="font-family: Arial, sans-serif; padding: 5px;">
                                 <h6 style="margin: 0 0 5px; color: #2c5e8a;">${station.name}</h6>
                                 <p style="margin: 0 0 5px; font-size: 12px;">Station: ${station.station_no}</p>
-                                <a href="/station?station=${encodeURIComponent(station.name)}" style="color: #2c5e8a; font-weight: 600;">View Details →</a>
+                                <a href="${basePath}/station?station=${encodeURIComponent(station.name)}" style="color: #2c5e8a; font-weight: 600;">View Details →</a>
                             </div>
                         `
                     });

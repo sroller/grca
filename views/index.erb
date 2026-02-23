@@ -53,7 +53,7 @@
             <div class="card-body">
                 <p class="lead text-center">Select a station to view current sensor data:</p>
 
-                <form action="/station" method="get" id="stationForm">
+                <form action="<%= url_for('/station') %>" method="get" id="stationForm">
                     <input type="hidden" name="timezone" id="timezone" value="">
                     <div class="mb-3">
                         <label for="station" class="form-label fw-bold">Station:</label>
@@ -74,11 +74,11 @@
                 <div class="parameter-section">
                     <h5 class="text-center mb-3">Parameter Overviews</h5>
                     <div class="d-flex flex-wrap justify-content-center gap-2">
-                        <a href="/parameter/temperature" class="btn btn-outline-primary">Temperature</a>
-                        <a href="/parameter/water_temperature" class="btn btn-outline-primary">Water Temp</a>
-                        <a href="/parameter/stage" class="btn btn-outline-primary">Stage</a>
-                        <a href="/parameter/flow" class="btn btn-outline-primary">Flow</a>
-                        <a href="/parameter/precipitation" class="btn btn-outline-primary">Precipitation</a>
+                        <a href="<%= url_for('/parameter/temperature') %>" class="btn btn-outline-primary">Temperature</a>
+                        <a href="<%= url_for('/parameter/water_temperature') %>" class="btn btn-outline-primary">Water Temp</a>
+                        <a href="<%= url_for('/parameter/stage') %>" class="btn btn-outline-primary">Stage</a>
+                        <a href="<%= url_for('/parameter/flow') %>" class="btn btn-outline-primary">Flow</a>
+                        <a href="<%= url_for('/parameter/precipitation') %>" class="btn btn-outline-primary">Precipitation</a>
                     </div>
                 </div>
 
@@ -87,15 +87,15 @@
                 <div class="parameter-section">
                     <h5 class="text-center mb-3">Lakes &amp; Dams</h5>
                     <div class="d-flex flex-wrap justify-content-center gap-2">
-                        <a href="/parameter/reservoir_level" class="btn btn-outline-primary">Reservoir Elevation</a>
-                        <a href="/parameter/reservoir_volume" class="btn btn-outline-primary">Reservoir Storage</a>
+                        <a href="<%= url_for('/parameter/reservoir_level') %>" class="btn btn-outline-primary">Reservoir Elevation</a>
+                        <a href="<%= url_for('/parameter/reservoir_volume') %>" class="btn btn-outline-primary">Reservoir Storage</a>
                     </div>
                 </div>
 
                 <hr class="my-4">
 
                 <div class="text-center">
-                    <a href="/map" class="btn btn-primary btn-lg">
+                    <a href="<%= url_for('/map') %>" class="btn btn-primary btn-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: -3px; margin-right: 5px;">
                             <path fill-rule="evenodd" d="M15.817.113A.5.5 0 0 1 16 .5v14a.5.5 0 0 1-.402.49l-5 1a.502.502 0 0 1-.196 0L5.5 15.01l-4.902.98A.5.5 0 0 1 0 15.5v-14a.5.5 0 0 1 .402-.49l5-1a.5.5 0 0 1 .196 0L10.5.99l4.902-.98a.5.5 0 0 1 .415.103zM10 1.91l-4-.8v12.98l4 .8V1.91zm1 12.98 4-.8V1.11l-4 .8v12.98zm-6-.8V1.11l-4 .8v12.98l4-.8z"/>
                         </svg>

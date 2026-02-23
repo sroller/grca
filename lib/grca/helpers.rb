@@ -28,5 +28,21 @@ module Grca
       # Use superscript ³ (U+00B3) for cubic meter (case-insensitive)
       unit.gsub(%r{m3/s}i, "m³/s").gsub(/m3/i, "m³")
     end
+
+    # Generate a URL that respects the SCRIPT_NAME base path
+    # This allows the app to work under a subdirectory in nginx
+    def url_for(path)
+      # Get the base path from SCRIPT_NAME (set by nginx)
+      script_name = request.env["SCRIPT_NAME"] || ""
+      # Ensure path starts with /
+      path = "/" + path unless path.start_with?("/")
+      # Combine base path with the requested path
+      "#{script_name}#{path}"
+    end
+
+    # Check if current path matches the given path
+    def current_path?(path)
+      request.path == url_for(path)
+    end
   end
 end

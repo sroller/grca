@@ -75,11 +75,11 @@
             <div class="card-body">
                 <nav class="mb-4">
                     <div class="d-flex flex-wrap justify-content-center gap-2">
-                        <a href="/" class="btn btn-outline-primary btn-sm">Station List</a>
-                        <a href="/parameter/temperature" class="btn btn-outline-primary btn-sm">Temperature</a>
-                        <a href="/parameter/water_temperature" class="btn btn-outline-primary btn-sm">Water Temp</a>
-                        <a href="/parameter/stage" class="btn btn-outline-primary btn-sm">Stage</a>
-                        <a href="/parameter/flow" class="btn btn-outline-primary btn-sm">Flow</a>
+                        <a href="<%= url_for('/') %>" class="btn btn-outline-primary btn-sm">Station List</a>
+                        <a href="<%= url_for('/parameter/temperature') %>" class="btn btn-outline-primary btn-sm">Temperature</a>
+                        <a href="<%= url_for('/parameter/water_temperature') %>" class="btn btn-outline-primary btn-sm">Water Temp</a>
+                        <a href="<%= url_for('/parameter/stage') %>" class="btn btn-outline-primary btn-sm">Stage</a>
+                        <a href="<%= url_for('/parameter/flow') %>" class="btn btn-outline-primary btn-sm">Flow</a>
                         <a href="/parameter/precipitation" class="btn btn-outline-primary btn-sm active">Precipitation</a>
                     </div>
                 </nav>
