@@ -15,9 +15,14 @@ task default: %i[test rubocop]
 namespace :deploy do
   desc "Install all gem dependencies"
   task :install_gems do
-    puts "Installing gems..."
-    sh "bundle install --deployment --without development test"
+    puts "Installing gems system-wide (no vendor/bundle)..."
+    # Use --system to install gems system-wide instead of in vendor/bundle
+    # This is cleaner for RVM-managed environments
+    sh "bundle config set path.system true"
+    sh "bundle install"
     puts "Gems installed successfully!"
+    puts "\nNote: Gems are installed system-wide in your RVM environment."
+    puts "No vendor/bundle directory created."
   end
 
   desc "Deploy nginx configuration to /etc/nginx/sites-available"
@@ -169,13 +174,29 @@ namespace :deploy do
     # Create destination directory
     FileUtils.mkdir_p(destination)
 
+    # Create a production Gemfile (no gemspec dependency)
+    puts "Creating production Gemfile..."
+    production_gemfile = <<~GEMFILE
+      # frozen_string_literal: true
+      
+      source "https://rubygems.org"
+      
+      # Production dependencies only - no development/test gems
+      gem "sinatra", "~> 3.0"
+      gem "thin", "~> 1.8"
+      gem "webrick", "~> 1.8"
+      gem "redis", "~> 5.0"
+      gem "ostruct", "~> 0.6"
+      gem "irb"
+    GEMFILE
+    
+    File.write(File.join(destination, "Gemfile"), production_gemfile)
+    
     # Files and directories to copy for production deployment
     # Note: Rakefile and gemspec are NOT needed - only runtime files
     files_to_copy = [
       "lib",       # Application code
       "views",     # ERB templates
-      "Gemfile",   # Gem dependencies
-      "Gemfile.lock",  # Locked gem versions
       "bin/grca_web",  # Web server launcher
       "config.ru"      # Rack configuration file
     ]
