@@ -6,7 +6,7 @@ module Grca
     # Format a numeric value with one decimal place
     def format_value(value)
       return "-" if value.nil?
-      
+
       Float(value).round(1)
     rescue ArgumentError, TypeError
       value
@@ -15,7 +15,7 @@ module Grca
     # Format a percentage as an integer
     def format_percent(value)
       return nil if value.nil?
-      
+
       Integer(value.round)
     rescue ArgumentError, TypeError
       nil
@@ -24,7 +24,7 @@ module Grca
     # Format unit string with proper Unicode characters
     def format_unit(unit)
       return "" if unit.nil? || unit.empty?
-      
+
       # Use superscript ³ (U+00B3) for cubic meter (case-insensitive)
       unit.gsub(%r{m3/s}i, "m³/s").gsub(/m3/i, "m³")
     end
@@ -35,7 +35,7 @@ module Grca
       # Get the base path from SCRIPT_NAME (set by nginx)
       script_name = request.env["SCRIPT_NAME"] || ""
       # Ensure path starts with /
-      path = "/" + path unless path.start_with?("/")
+      path = "/#{path}" unless path.start_with?("/")
       # Combine base path with the requested path
       "#{script_name}#{path}"
     end

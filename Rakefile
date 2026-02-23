@@ -150,7 +150,7 @@ namespace :deploy do
 
   desc "Complete deployment - runs all deployment tasks"
   task all: %i[install_gems copy_files systemd_service nginx_config] do
-    puts "\n" + "=" * 60
+    puts "\n#{"=" * 60}"
     puts "Deployment complete!"
     puts "=" * 60
     puts "\nFinal steps:"

@@ -18,12 +18,8 @@ module Grca
     def get(params)
       uri = build_uri(params)
       response = Net::HTTP.get_response(uri)
-      
-      if response.code == "200"
-        JSON.parse(response.body)
-      else
-        nil
-      end
+
+      JSON.parse(response.body) if response.code == "200"
     rescue StandardError => e
       puts "API Error: #{e.message}"
       nil
@@ -39,7 +35,7 @@ module Grca
         format: "json"
       }
       params[:returnfields] = returnfields if returnfields
-      
+
       get(params)
     end
 
@@ -53,7 +49,7 @@ module Grca
         format: "json",
         station_no: station_no
       }
-      
+
       get(params)
     end
 
@@ -68,7 +64,7 @@ module Grca
         station_no: station_nos
       }
       params[:returnfields] = returnfields if returnfields
-      
+
       get(params)
     end
 
@@ -84,7 +80,7 @@ module Grca
       }
       params[:timezone] = timezone if timezone && !timezone.empty?
       params[:period] = period if period
-      
+
       get(params)
     end
 
