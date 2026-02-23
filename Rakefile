@@ -178,9 +178,9 @@ namespace :deploy do
     puts "Creating production Gemfile..."
     production_gemfile = <<~GEMFILE
       # frozen_string_literal: true
-      
+
       source "https://rubygems.org"
-      
+
       # Production dependencies only - no development/test gems
       gem "sinatra", "~> 3.0"
       gem "thin", "~> 1.8"
@@ -189,9 +189,9 @@ namespace :deploy do
       gem "ostruct", "~> 0.6"
       gem "irb"
     GEMFILE
-    
+
     File.write(File.join(destination, "Gemfile"), production_gemfile)
-    
+
     # Files and directories to copy for production deployment
     # Note: Rakefile and gemspec are NOT needed - only runtime files
     files_to_copy = [
