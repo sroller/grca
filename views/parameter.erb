@@ -74,6 +74,15 @@
             color: #666;
             padding: 40px;
         }
+        .percent-low {
+            color: #d9534f;
+        }
+        .percent-normal {
+            color: #5cb85c;
+        }
+        .percent-high {
+            color: #2c5e8a;
+        }
     </style>
 </head>
 <body>
@@ -95,6 +104,9 @@
                     <tr>
                         <th>Station</th>
                         <th>Value</th>
+                        <% if @parameter_data.any? { |d| d[:summer_low_percent] } %>
+                            <th>% Summer Low</th>
+                        <% end %>
                         <th>Time</th>
                         <th>Location</th>
                     </tr>
@@ -106,6 +118,16 @@
                                 <a class="station-link" href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
                             </td>
                             <td class="value"><%= data[:value] %> <%= data[:unit] %></td>
+                            <% if @parameter_data.any? { |d| d[:summer_low_percent] } %>
+                                <td>
+                                    <% if data[:summer_low_percent] %>
+                                        <% percent_class = data[:summer_low_percent] < 70 ? 'percent-low' : (data[:summer_low_percent] > 100 ? 'percent-high' : 'percent-normal') %>
+                                        <span class="<%= percent_class %>"><%= data[:summer_low_percent] %>%</span>
+                                    <% else %>
+                                        <span style="color: #999;">-</span>
+                                    <% end %>
+                                </td>
+                            <% end %>
                             <td class="timestamp" data-timestamp="<%= data[:timestamp] %>"><%= data[:timestamp] %></td>
                             <td>
                                 <% if data[:latitude] && data[:longitude] %>

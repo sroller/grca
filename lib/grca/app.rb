@@ -5,6 +5,7 @@ require "sinatra/base"
 require "json"
 require "net/http"
 require "uri"
+require_relative "summer_low_reference"
 
 module Grca
   class App < Sinatra::Base
@@ -332,12 +333,19 @@ module Grca
         value = get_timeseries_value(ts[:ts_id], timezone)
         next unless value
 
-        measurements << {
+        measurement = {
           parameter: ts[:param_longname] || ts[:param_name] || ts[:param_type_name],
           value: value[:value],
           unit: ts[:unit] || "",
           time: value[:timestamp]
         }
+
+        # Add summer low percentage for flow measurements
+        if param_name == "QR" || param_longname&.include?("flow")
+          measurement[:summer_low_percent] = Grca.summer_low_percentage(station_name, value[:value].to_f)
+        end
+
+        measurements << measurement
       end
 
       # Calculate cumulative precipitation if available
@@ -490,7 +498,7 @@ module Grca
         value = values_by_ts_id[ts[:ts_id]]
         next unless value
 
-        results << {
+        result = {
           station_name: station[:name],
           station_no: station[:station_no],
           latitude: station[:latitude],
@@ -500,6 +508,13 @@ module Grca
           timestamp: value[:timestamp],
           parameter: ts[:param_longname] || ts[:param_name] || ts[:param_type_name]
         }
+
+        # Add summer low percentage for flow parameter
+        if param_type == "flow"
+          result[:summer_low_percent] = Grca.summer_low_percentage(station[:name], value[:value].to_f)
+        end
+
+        results << result
       end
 
       # Filter out invalid measurements (stale data, out-of-range values)

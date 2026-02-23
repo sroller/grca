@@ -61,6 +61,15 @@
         .map-link:hover {
             text-decoration: underline;
         }
+        .percent-low {
+            color: #d9534f;
+        }
+        .percent-normal {
+            color: #5cb85c;
+        }
+        .percent-high {
+            color: #2c5e8a;
+        }
     </style>
 </head>
 <body>
@@ -83,11 +92,15 @@
 
         <h2>Current Measurements</h2>
         <% if @station_data[:measurements] && !@station_data[:measurements].empty? %>
+            <% has_flow_percent = @station_data[:measurements].any? { |m| m[:summer_low_percent] } %>
             <table>
                 <thead>
                     <tr>
                         <th>Parameter</th>
                         <th>Value</th>
+                        <% if has_flow_percent %>
+                            <th>% Summer Low</th>
+                        <% end %>
                         <th>Time</th>
                     </tr>
                 </thead>
@@ -96,6 +109,16 @@
                         <tr>
                             <td><%= measurement[:parameter] %></td>
                             <td class="measurement-value"><%= measurement[:value] %><% if measurement[:unit] && !measurement[:unit].empty? %> <%= measurement[:unit] %><% end %></td>
+                            <% if has_flow_percent %>
+                                <td>
+                                    <% if measurement[:summer_low_percent] %>
+                                        <% percent_class = measurement[:summer_low_percent] < 70 ? 'percent-low' : (measurement[:summer_low_percent] > 100 ? 'percent-high' : 'percent-normal') %>
+                                        <span class="<%= percent_class %>"><%= measurement[:summer_low_percent] %>%</span>
+                                    <% else %>
+                                        <span style="color: #999;">-</span>
+                                    <% end %>
+                                </td>
+                            <% end %>
                             <td class="timestamp" data-timestamp="<%= measurement[:time] %>"><%= measurement[:time] %></td>
                         </tr>
                     <% end %>
