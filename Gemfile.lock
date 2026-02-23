@@ -33,6 +33,7 @@ GEM
     minitest (5.27.0)
     mustermann (3.0.4)
       ruby2_keywords (~> 0.0.1)
+    nio4r (2.7.5)
     ostruct (0.6.3)
     parallel (1.27.0)
     parser (3.3.10.2)
@@ -45,6 +46,8 @@ GEM
     psych (5.3.1)
       date
       stringio
+    puma (6.6.1)
+      nio4r (~> 2.0)
     racc (1.8.1)
     rack (2.2.22)
     rack-protection (3.2.0)
@@ -105,6 +108,7 @@ DEPENDENCIES
   grca!
   irb
   minitest (~> 5.16)
+  puma (~> 6.0)
   rake (~> 13.0)
   redis (~> 5.0)
   rerun

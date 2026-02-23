@@ -10,13 +10,22 @@ require_relative "data_service"
 module Grca
   class App < Sinatra::Base
     helpers Grca::Helpers
-    
-    set :server, "webrick"
+
+    # Use Puma in production, WEBrick for development
+    begin
+      require "puma"
+      set :server, "puma"
+      set :puma_server, true
+      set :threads, [1, 16] # Min, max threads
+    rescue LoadError
+      set :server, "webrick"
+    end
+
     set :bind, "0.0.0.0"
     set :port, 4567
     set :public_folder, File.join(File.dirname(__FILE__), "..", "..", "public")
     set :views, File.join(File.dirname(__FILE__), "..", "..", "views")
-    
+
     # Initialize services
     def data_service
       @data_service ||= DataService.new(ApiClient.new)
@@ -33,7 +42,7 @@ module Grca
       @stations = data_service.get_stations
       @station_name = params[:station]
       @station_data = data_service.get_station_data(@station_name, params[:timezone])
-      
+
       if @station_data.nil? || @station_data.empty?
         redirect "/"
       else
@@ -45,10 +54,10 @@ module Grca
     get "/parameter/:type" do
       param_type = params[:type]
       timezone = params[:timezone]
-      
+
       @parameter_data = data_service.get_parameter_across_stations(param_type, timezone)
       @parameter_name = format_parameter_name(param_type)
-      
+
       erb :parameter
     end
 
@@ -57,7 +66,7 @@ module Grca
       timezone = params[:timezone]
       @parameter_data = data_service.get_precipitation_across_stations(timezone)
       @parameter_name = "Precipitation"
-      
+
       erb :precipitation
     end
 

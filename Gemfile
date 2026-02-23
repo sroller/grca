@@ -12,8 +12,9 @@ gem "minitest", "~> 5.16"
 
 gem "rubocop", "~> 1.21"
 
-# Web server for Sinatra
-gem "webrick", "~> 1.8"
+# Web servers
+gem "puma", "~> 6.0"
+gem "webrick", "~> 1.8"  # For development fallback
 
 # Redis for production caching
 gem "redis", "~> 5.0"
