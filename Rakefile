@@ -51,9 +51,9 @@ namespace :deploy do
 
     service_content = <<~SERVICE
       [Unit]
-      Description=GRCA Web Application (Puma Server)
+      Description=GRCA Web Application (Thin Server)
       After=network.target
-
+      #{"    "}
       [Service]
       Type=simple
       User=www-data
@@ -61,14 +61,14 @@ namespace :deploy do
       WorkingDirectory=/var/www/grca
       Environment="BUNDLE_GEMFILE=/var/www/grca/Gemfile"
       Environment="RACK_ENV=production"
-      # Use Puma for better performance and concurrency
-      ExecStart=/usr/bin/bundle exec puma -C config/puma.rb
+      # Use Thin for fast, lightweight web serving
+      ExecStart=/usr/bin/bundle exec thin -e production -p 4567 -P /tmp/grca.pid -l /tmp/grca.log start
       Restart=always
       RestartSec=5
       StandardOutput=journal
       StandardError=journal
       SyslogIdentifier=grca
-
+      #{"    "}
       [Install]
       WantedBy=multi-user.target
     SERVICE
@@ -109,7 +109,6 @@ namespace :deploy do
     files_to_copy = [
       "lib",
       "views",
-      "config", # Puma configuration
       "Gemfile",
       "Gemfile.lock",
       "bin/grca_web",

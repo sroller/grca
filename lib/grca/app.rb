@@ -11,12 +11,10 @@ module Grca
   class App < Sinatra::Base
     helpers Grca::Helpers
 
-    # Use Puma in production, WEBrick for development
+    # Use Thin in production, WEBrick for development
     begin
-      require "puma"
-      set :server, "puma"
-      set :puma_server, true
-      set :threads, [1, 16] # Min, max threads
+      require "thin"
+      set :server, "thin"
     rescue LoadError
       set :server, "webrick"
     end
