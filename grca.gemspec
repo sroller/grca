@@ -11,7 +11,6 @@ Gem::Specification.new do |spec|
   spec.summary = "Grand River Conservation Authority - Realtime sensor data access"
   spec.description = "GRCA provides easy access to (near-)realtime sensor data from the Grand River Conservation Authority. This application presents a web interface to view current conditions from stations along the rivers in the Grand River watershed."
   spec.homepage = "https://github.com/[USERNAME]/grca"
-  spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
