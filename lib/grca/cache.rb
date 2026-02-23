@@ -2,6 +2,7 @@
 
 require "json"
 require "fileutils"
+require "digest"
 
 module Grca
   # Cache module supporting Redis (production) and file-based (development) caching
@@ -40,6 +41,11 @@ module Grca
 
       private
 
+      # Generate a short, filesystem-safe filename from cache key
+      def hash_key(key)
+        Digest::SHA256.hexdigest(key)[0, 32]
+      end
+
       def redis_client
         @redis_client ||= Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
       end
@@ -60,8 +66,9 @@ module Grca
 
       def fetch_file(key, ttl)
         FileUtils.mkdir_p(CACHE_DIR)
-        cache_file = File.join(CACHE_DIR, "#{key}.json")
-        lock_file = File.join(CACHE_DIR, "#{key}.lock")
+        hashed = hash_key(key)
+        cache_file = File.join(CACHE_DIR, "#{hashed}.json")
+        lock_file = File.join(CACHE_DIR, "#{hashed}.lock")
 
         # Use file locking to prevent thundering herd
         File.open(lock_file, "w") do |lock|

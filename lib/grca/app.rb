@@ -87,7 +87,7 @@ module Grca
     # Get timeseries list for one or more stations (comma-separated station_no)
     def get_timeseries_list(station_no)
       # Create cache key from sorted station numbers
-      cache_key = "timeseries_list:#{station_no.to_s.split(',').sort.join(',')}"
+      cache_key = "timeseries_list:#{station_no.to_s.split(",").sort.join(",")}"
 
       Cache.fetch(cache_key) do
         # Request additional fields for human-readable names and units
@@ -159,9 +159,9 @@ module Grca
       return {} if ts_ids.nil? || ts_ids.empty?
 
       # Cache with shorter TTL for real-time data
-      cache_key = "ts_values:#{ts_ids.to_s.split(',').sort.join(',')}:#{timezone || 'utc'}"
+      cache_key = "ts_values:#{ts_ids.to_s.split(",").sort.join(",")}:#{timezone || "utc"}"
 
-      Cache.fetch(cache_key, ttl: 10 * 60) do  # 10 minute TTL for real-time data
+      Cache.fetch(cache_key, ttl: 10 * 60) do # 10 minute TTL for real-time data
         url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_ids}"
         url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
         uri = URI(url)
@@ -255,9 +255,9 @@ module Grca
     # Get timeseries values for a period (e.g., "P7D" for 7 days, "P24H" for 24 hours)
     def get_timeseries_values_for_period(ts_id, period, timezone = nil)
       # Cache with shorter TTL for real-time data
-      cache_key = "ts_period:#{ts_id}:#{period}:#{timezone || 'utc'}"
+      cache_key = "ts_period:#{ts_id}:#{period}:#{timezone || "utc"}"
 
-      Cache.fetch(cache_key, ttl: 10 * 60) do  # 10 minute TTL for real-time data
+      Cache.fetch(cache_key, ttl: 10 * 60) do # 10 minute TTL for real-time data
         url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_id}&period=#{period}"
         url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
         uri = URI(url)
