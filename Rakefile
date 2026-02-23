@@ -177,16 +177,17 @@ namespace :deploy do
       "Gemfile.lock",
       "bin/grca_web",
       "config.ru",
-      ".ruby-version" # Copy RVM version file if it exists
+      "Rakefile",  # For deployment tasks
+      "grca.gemspec"  # Required by Gemfile
     ]
 
     # Copy each file/directory
     files_to_copy.each do |file|
       source = File.join(__dir__, file)
       dest = File.join(destination, file)
-          
+
       next unless File.exist?(source)
-          
+
       if File.directory?(source)
         puts "  Copying directory: #{file}"
         FileUtils.rm_rf(dest)
