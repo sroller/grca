@@ -1,144 +1,123 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>GRCA - Precipitation Overview</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRCA - Precipitation Overview</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+        :root {
+            --grca-primary: #2c5e8a;
+            --grca-light: #e8f4f8;
         }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
+        body {
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        .card {
+            border: none;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        h1 {
-            color: #2c5e8a;
-            text-align: center;
-        }
-        .nav-links {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .nav-links a {
-            color: #2c5e8a;
-            text-decoration: none;
-            margin: 0 10px;
-        }
-        .nav-links a:hover {
-            text-decoration: underline;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #2c5e8a;
+        .card-header {
+            background-color: var(--grca-primary);
             color: white;
         }
-        tr:hover {
-            background-color: #f5f5f5;
+        .btn-primary {
+            background-color: var(--grca-primary);
+            border-color: var(--grca-primary);
         }
-        .value {
-            font-weight: bold;
+        .btn-primary:hover {
+            background-color: #1e4464;
+            border-color: #1e4464;
         }
-        .station-link {
-            color: #2c5e8a;
-            text-decoration: none;
+        .btn-outline-primary {
+            color: var(--grca-primary);
+            border-color: var(--grca-primary);
         }
-        .station-link:hover {
-            text-decoration: underline;
+        .btn-outline-primary:hover {
+            background-color: var(--grca-primary);
+            border-color: var(--grca-primary);
         }
-        .map-link {
-            color: #2c5e8a;
-            text-decoration: none;
-            font-size: 0.9em;
+        .table th {
+            background-color: var(--grca-primary);
+            color: white;
         }
-        .map-link:hover {
-            text-decoration: underline;
+        .table-warning-custom {
+            background-color: #fff3cd !important;
         }
-        .no-data {
-            text-align: center;
-            color: #666;
-            padding: 40px;
-        }
-        .highlight-heavy {
-            background-color: #fff3cd;
-        }
-        .highlight-very-heavy {
-            background-color: #f8d7da;
+        .table-danger-custom {
+            background-color: #f8d7da !important;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Precipitation Overview</h1>
+        <div class="card">
+            <div class="card-header text-center py-3">
+                <h1 class="h3 mb-0">Precipitation Overview</h1>
+            </div>
+            <div class="card-body">
+                <nav class="mb-4">
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a href="/" class="btn btn-outline-primary btn-sm">Station List</a>
+                        <a href="/parameter/temperature" class="btn btn-outline-primary btn-sm">Temperature</a>
+                        <a href="/parameter/water_temperature" class="btn btn-outline-primary btn-sm">Water Temp</a>
+                        <a href="/parameter/stage" class="btn btn-outline-primary btn-sm">Stage</a>
+                        <a href="/parameter/flow" class="btn btn-outline-primary btn-sm">Flow</a>
+                        <a href="/parameter/precipitation" class="btn btn-outline-primary btn-sm active">Precipitation</a>
+                    </div>
+                </nav>
 
-        <div class="nav-links">
-            <a href="/">Station List</a> |
-            <a href="/parameter/temperature">Temperature</a> |
-            <a href="/parameter/water_temperature">Water Temp</a> |
-            <a href="/parameter/stage">Stage</a> |
-            <a href="/parameter/flow">Flow</a> |
-            <a href="/parameter/precipitation">Precipitation</a>
-        </div>
-
-        <% if @precipitation_data && !@precipitation_data.empty? %>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Station</th>
-                        <th>24 hours</th>
-                        <th>72 hours</th>
-                        <th>7 days</th>
-                        <th>Location</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% @precipitation_data.each do |data| %>
-                        <% 
-                          row_class = ""
-                          if data[:precip_24h] && data[:precip_24h] >= 25
-                            row_class = "highlight-very-heavy"
-                          elsif data[:precip_24h] && data[:precip_24h] >= 10
-                            row_class = "highlight-heavy"
-                          end
-                        %>
-                        <tr class="<%= row_class %>">
-                            <td>
-                                <a class="station-link" href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
-                            </td>
-                            <td class="value"><%= data[:precip_24h] %> <%= data[:unit] %></td>
-                            <td class="value"><%= data[:precip_72h] %> <%= data[:unit] %></td>
-                            <td class="value"><%= data[:precip_7d] %> <%= data[:unit] %></td>
-                            <td>
-                                <% if data[:latitude] && data[:longitude] %>
-                                    <a class="map-link" href="https://www.google.com/maps?q=<%= data[:latitude] %>,<%= data[:longitude] %>" target="_blank" rel="noopener noreferrer">Map</a>
+                <% if @precipitation_data && !@precipitation_data.empty? %>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Station</th>
+                                    <th>24 hours</th>
+                                    <th>72 hours</th>
+                                    <th>7 days</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% @precipitation_data.each do |data| %>
+                                    <% 
+                                      row_class = ""
+                                      if data[:precip_24h] && data[:precip_24h] >= 25
+                                        row_class = "table-danger-custom"
+                                      elsif data[:precip_24h] && data[:precip_24h] >= 10
+                                        row_class = "table-warning-custom"
+                                      end
+                                    %>
+                                    <tr class="<%= row_class %>">
+                                        <td>
+                                            <a href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
+                                        </td>
+                                        <td class="fw-bold"><%= data[:precip_24h] %> <%= data[:unit] %></td>
+                                        <td class="fw-bold"><%= data[:precip_72h] %> <%= data[:unit] %></td>
+                                        <td class="fw-bold"><%= data[:precip_7d] %> <%= data[:unit] %></td>
+                                        <td>
+                                            <% if data[:latitude] && data[:longitude] %>
+                                                <a href="https://www.google.com/maps?q=<%= data[:latitude] %>,<%= data[:longitude] %>" target="_blank" rel="noopener noreferrer">Map</a>
+                                            <% end %>
+                                        </td>
+                                    </tr>
                                 <% end %>
-                            </td>
-                        </tr>
-                    <% end %>
-                </tbody>
-            </table>
-        <% else %>
-            <p class="no-data">No precipitation data available.</p>
-        <% end %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% else %>
+                    <div class="alert alert-info text-center">No precipitation data available.</div>
+                <% end %>
 
-        <div class="nav-links" style="margin-top: 20px;">
-            <a href="/">← Back to Station List</a>
+                <div class="text-center mt-4">
+                    <a href="/" class="btn btn-primary">← Back to Station List</a>
+                </div>
+            </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
