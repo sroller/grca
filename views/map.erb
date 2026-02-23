@@ -61,6 +61,20 @@
         .leaflet-popup-content-wrapper {
             border-radius: 8px;
         }
+        .station-tooltip {
+            background-color: var(--grca-primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .leaflet-tooltip-left::before,
+        .leaflet-tooltip-right::before {
+            border-left-color: var(--grca-primary);
+            border-right-color: var(--grca-primary);
+        }
     </style>
 </head>
 <body>
@@ -120,6 +134,12 @@
                 if (station.latitude && station.longitude) {
                     const marker = L.marker([station.latitude, station.longitude], { icon: stationIcon })
                         .addTo(leafletMap)
+                        .bindTooltip(station.name, {
+                            permanent: false,
+                            direction: 'top',
+                            className: 'station-tooltip',
+                            offset: [0, -16]
+                        })
                         .bindPopup(`
                             <div class="station-popup">
                                 <h6>${station.name}</h6>
@@ -182,7 +202,21 @@
                         `
                     });
                     
+                    // Hover tooltip (small info window)
+                    const tooltipWindow = new google.maps.InfoWindow({
+                        content: `<div style="font-weight: 600; color: #2c5e8a; padding: 2px 5px;">${station.name}</div>`
+                    });
+                    
+                    marker.addListener('mouseover', () => {
+                        tooltipWindow.open(googleMap, marker);
+                    });
+                    
+                    marker.addListener('mouseout', () => {
+                        tooltipWindow.close();
+                    });
+                    
                     marker.addListener('click', () => {
+                        tooltipWindow.close();
                         infowindow.open(googleMap, marker);
                     });
                     
