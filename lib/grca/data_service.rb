@@ -29,13 +29,26 @@ module Grca
         data = @api_client.get_station_list(returnfields)
         return [] unless data.is_a?(Array)
         
-        data.drop(1).map do |row|
+        result = data.drop(1).map do |row|
           {
             name: row[0],
             station_no: row[1],
             latitude: row[2],
             longitude: row[3]
           }
+        end
+        
+        result
+      end.tap do |cached_result|
+        if cached_result && !cached_result.empty?
+          # Convert string keys back to symbols if needed (from JSON serialization)
+          cached_result.map! do |station|
+            if station.is_a?(Hash)
+              station.transform_keys(&:to_sym)
+            else
+              station
+            end
+          end
         end
       end
     rescue StandardError => e
@@ -52,7 +65,7 @@ module Grca
         data = @api_client.get_timeseries_list(station_no, returnfields)
         return [] unless data.is_a?(Array)
         
-        data.drop(1).map do |row|
+        result = data.drop(1).map do |row|
           {
             station_name: row[0],
             station_no: row[1],
@@ -64,6 +77,19 @@ module Grca
             param_longname: row[7],
             unit: row[8]
           }
+        end
+        
+        result
+      end.tap do |cached_result|
+        if cached_result && !cached_result.empty?
+          # Convert string keys back to symbols if needed (from JSON serialization)
+          cached_result.map! do |ts|
+            if ts.is_a?(Hash)
+              ts.transform_keys(&:to_sym)
+            else
+              ts
+            end
+          end
         end
       end
     rescue StandardError => e
@@ -94,7 +120,7 @@ module Grca
       
       cache_key = "ts_values:#{ts_ids.to_s.split(",").sort.join(",")}:#{timezone || 'utc'}"
       
-      Cache.fetch(cache_key, ttl: 10 * 60) do
+      result = Cache.fetch(cache_key, ttl: 10 * 60) do
         data = @api_client.get_timeseries_values(ts_ids, timezone)
         return {} unless data.is_a?(Array)
         
@@ -110,6 +136,18 @@ module Grca
         end
         results
       end
+      
+      # Convert any nested hashes with string keys to symbol keys (from JSON serialization)
+      converted_result = {}
+      result.each do |key, value_hash|
+        if value_hash.is_a?(Hash)
+          converted_result[key] = value_hash.transform_keys(&:to_sym)
+        else
+          converted_result[key] = value_hash
+        end
+      end
+      
+      converted_result
     rescue StandardError => e
       puts "Error fetching timeseries values batch: #{e.message}"
       {}
