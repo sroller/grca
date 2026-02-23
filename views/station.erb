@@ -95,7 +95,7 @@
                                 <% @station_data[:measurements].each do |measurement| %>
                                     <tr>
                                         <td><%= measurement[:parameter] %></td>
-                                        <td class="fw-bold"><%= measurement[:value] %><% if measurement[:unit] && !measurement[:unit].empty? %> <%= measurement[:unit] %><% end %></td>
+                                        <td class="fw-bold"><%= format_value(measurement[:value]) %><% if measurement[:unit] && !measurement[:unit].empty? %> <%= format_unit(measurement[:unit]) %><% end %></td>
                                         <% if has_flow_percent %>
                                             <td>
                                                 <% if measurement[:summer_low_percent] %>

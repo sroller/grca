@@ -95,9 +95,9 @@
                                         <td>
                                             <a href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
                                         </td>
-                                        <td class="fw-bold"><%= data[:precip_24h] %> <%= data[:unit] %></td>
-                                        <td class="fw-bold"><%= data[:precip_72h] %> <%= data[:unit] %></td>
-                                        <td class="fw-bold"><%= data[:precip_7d] %> <%= data[:unit] %></td>
+                                        <td class="fw-bold"><%= format_value(data[:precip_24h]) %> <%= format_unit(data[:unit]) %></td>
+                                        <td class="fw-bold"><%= format_value(data[:precip_72h]) %> <%= format_unit(data[:unit]) %></td>
+                                        <td class="fw-bold"><%= format_value(data[:precip_7d]) %> <%= format_unit(data[:unit]) %></td>
                                         <td>
                                             <% if data[:latitude] && data[:longitude] %>
                                                 <a href="https://www.google.com/maps?q=<%= data[:latitude] %>,<%= data[:longitude] %>" target="_blank" rel="noopener noreferrer">Map</a>

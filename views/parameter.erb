@@ -99,7 +99,7 @@
                                         <td>
                                             <a href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
                                         </td>
-                                        <td class="fw-bold"><%= data[:value] %> <%= data[:unit] %></td>
+                                        <td class="fw-bold"><%= format_value(data[:value]) %> <%= format_unit(data[:unit]) %></td>
                                         <% if @parameter_data.any? { |d| d[:summer_low_percent] } %>
                                             <td>
                                                 <% if data[:summer_low_percent] %>

@@ -57,7 +57,7 @@ module Grca
   # Calculate the percentage of summer low flow
   # @param station_name [String] The station name
   # @param current_flow [Float] The current flow value
-  # @return [Float, nil] The percentage of summer low flow, or nil if no reference
+  # @return [Integer, nil] The percentage of summer low flow, or nil if no reference
   def self.summer_low_percentage(station_name, current_flow)
     return nil if current_flow.nil? || current_flow.zero?
 
@@ -66,6 +66,6 @@ module Grca
 
     # reference is 70% of summer low, so:
     # percentage = (current / reference) * 70
-    ((current_flow / reference) * 70).round(1)
+    ((current_flow / reference) * 70).round.to_i
   end
 end

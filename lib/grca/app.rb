@@ -21,6 +21,33 @@ module Grca
       "https://waterdata.grandriver.ca/KiWIS/KiWIS"
     end
 
+    # Format a numeric value with one decimal place
+    def format_value(value)
+      return "-" if value.nil?
+
+      Float(value).round(1)
+    rescue ArgumentError, TypeError
+      value
+    end
+
+    # Format a percentage as an integer
+    def format_percent(value)
+      return nil if value.nil?
+
+      Integer(value.round)
+    rescue ArgumentError, TypeError
+      nil
+    end
+
+    # Format unit string with proper Unicode characters
+    def format_unit(unit)
+      return "" if unit.nil? || unit.empty?
+
+      # Replace m3 with m³ (cubic meter)
+      # Replace m3/s with m³/s
+      unit.gsub("m3/s", "m³/s").gsub("m3", "m³")
+    end
+
     # Get list of stations from GRCA API
     def get_stations
       uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getStationList&datasource=0&format=json")
