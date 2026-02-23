@@ -11,6 +11,7 @@ GEM
   specs:
     ast (2.4.3)
     base64 (0.3.0)
+    connection_pool (3.0.2)
     date (3.5.1)
     erb (6.0.1)
     ffi (1.17.3)
@@ -58,6 +59,10 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
+    redis (5.4.1)
+      redis-client (>= 0.22.0)
+    redis-client (0.26.4)
+      connection_pool
     regexp_parser (2.11.3)
     reline (0.6.3)
       io-console (~> 0.5)
@@ -101,6 +106,7 @@ DEPENDENCIES
   irb
   minitest (~> 5.16)
   rake (~> 13.0)
+  redis (~> 5.0)
   rerun
   rubocop (~> 1.21)
   webrick (~> 1.8)

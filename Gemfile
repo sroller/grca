@@ -15,6 +15,9 @@ gem "rubocop", "~> 1.21"
 # Web server for Sinatra
 gem "webrick", "~> 1.8"
 
+# Redis for production caching
+gem "redis", "~> 5.0"
+
 group :development do
   # Auto-reload on file changes
   gem "rerun"

@@ -7,6 +7,7 @@ require "net/http"
 require "uri"
 require_relative "summer_low_reference"
 require_relative "stage_reference"
+require_relative "cache"
 
 module Grca
   class App < Sinatra::Base
@@ -50,17 +51,18 @@ module Grca
 
     # Get list of stations from GRCA API
     def get_stations
-      uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getStationList&datasource=0&format=json")
-      response = Net::HTTP.get_response(uri)
+      Cache.fetch("station_list") do
+        uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getStationList&datasource=0&format=json")
+        response = Net::HTTP.get_response(uri)
 
-      if response.code == "200"
-        data = JSON.parse(response.body)
-        # The API returns an array where first row is header, subsequent rows are station data
-        # Skip the header row and extract station names
-        data.drop(1).map { |row| row[0] }.sort
-
-      else
-        []
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          # The API returns an array where first row is header, subsequent rows are station data
+          # Skip the header row and extract station names
+          data.drop(1).map { |row| row[0] }.sort
+        else
+          []
+        end
       end
     rescue StandardError => e
       puts "Error fetching stations: #{e.message}"
@@ -84,31 +86,36 @@ module Grca
 
     # Get timeseries list for one or more stations (comma-separated station_no)
     def get_timeseries_list(station_no)
-      # Request additional fields for human-readable names and units
-      returnfields = "station_name,station_no,ts_id,ts_name,parametertype_id,parametertype_name,stationparameter_name,stationparameter_longname,ts_unitsymbol"
-      uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesList&datasource=0&format=json&station_no=#{station_no}&returnfields=#{returnfields}")
-      response = Net::HTTP.get_response(uri)
+      # Create cache key from sorted station numbers
+      cache_key = "timeseries_list:#{station_no.to_s.split(',').sort.join(',')}"
 
-      if response.code == "200"
-        data = JSON.parse(response.body)
-        # Skip header row and map to meaningful keys
-        # Fields: station_name, station_no, ts_id, ts_name, parametertype_id, parametertype_name,
-        #         stationparameter_name, stationparameter_longname, ts_unitsymbol
-        data.drop(1).map do |row|
-          {
-            station_name: row[0],
-            station_no: row[1],
-            ts_id: row[2],
-            ts_name: row[3],
-            param_type_id: row[4],
-            param_type_name: row[5],
-            param_name: row[6],
-            param_longname: row[7],
-            unit: row[8]
-          }
+      Cache.fetch(cache_key) do
+        # Request additional fields for human-readable names and units
+        returnfields = "station_name,station_no,ts_id,ts_name,parametertype_id,parametertype_name,stationparameter_name,stationparameter_longname,ts_unitsymbol"
+        uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesList&datasource=0&format=json&station_no=#{station_no}&returnfields=#{returnfields}")
+        response = Net::HTTP.get_response(uri)
+
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          # Skip header row and map to meaningful keys
+          # Fields: station_name, station_no, ts_id, ts_name, parametertype_id, parametertype_name,
+          #         stationparameter_name, stationparameter_longname, ts_unitsymbol
+          data.drop(1).map do |row|
+            {
+              station_name: row[0],
+              station_no: row[1],
+              ts_id: row[2],
+              ts_name: row[3],
+              param_type_id: row[4],
+              param_type_name: row[5],
+              param_name: row[6],
+              param_longname: row[7],
+              unit: row[8]
+            }
+          end
+        else
+          []
         end
-      else
-        []
       end
     rescue StandardError => e
       puts "Error fetching timeseries list: #{e.message}"
@@ -147,33 +154,39 @@ module Grca
 
     # Get latest values for multiple timeseries (comma-separated ts_id)
     # Returns a hash keyed by ts_id
+    # Note: Uses shorter TTL (10 min) for real-time data
     def get_timeseries_values_batch(ts_ids, timezone = nil)
       return {} if ts_ids.nil? || ts_ids.empty?
 
-      url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_ids}"
-      url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
-      uri = URI(url)
-      response = Net::HTTP.get_response(uri)
+      # Cache with shorter TTL for real-time data
+      cache_key = "ts_values:#{ts_ids.to_s.split(',').sort.join(',')}:#{timezone || 'utc'}"
 
-      if response.code == "200"
-        data = JSON.parse(response.body)
-        return {} unless data.is_a?(Array)
+      Cache.fetch(cache_key, ttl: 10 * 60) do  # 10 minute TTL for real-time data
+        url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_ids}"
+        url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
+        uri = URI(url)
+        response = Net::HTTP.get_response(uri)
 
-        # When requesting multiple ts_ids, the API returns an array of results
-        # Each element contains ts_id and its data
-        results = {}
-        data.each do |ts_data|
-          ts_id = ts_data["ts_id"]
-          next unless ts_data["data"] && !ts_data["data"].empty?
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          next {} unless data.is_a?(Array)
 
-          results[ts_id] = {
-            timestamp: ts_data["data"][0][0],
-            value: ts_data["data"][0][1]
-          }
+          # When requesting multiple ts_ids, the API returns an array of results
+          # Each element contains ts_id and its data
+          results = {}
+          data.each do |ts_data|
+            ts_id = ts_data["ts_id"]
+            next unless ts_data["data"] && !ts_data["data"].empty?
+
+            results[ts_id] = {
+              timestamp: ts_data["data"][0][0],
+              value: ts_data["data"][0][1]
+            }
+          end
+          results
+        else
+          {}
         end
-        results
-      else
-        {}
       end
     rescue StandardError => e
       puts "Error fetching timeseries values batch: #{e.message}"
@@ -241,19 +254,24 @@ module Grca
 
     # Get timeseries values for a period (e.g., "P7D" for 7 days, "P24H" for 24 hours)
     def get_timeseries_values_for_period(ts_id, period, timezone = nil)
-      url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_id}&period=#{period}"
-      url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
-      uri = URI(url)
-      response = Net::HTTP.get_response(uri)
+      # Cache with shorter TTL for real-time data
+      cache_key = "ts_period:#{ts_id}:#{period}:#{timezone || 'utc'}"
 
-      if response.code == "200"
-        data = JSON.parse(response.body)
-        return [] unless data.is_a?(Array) && !data.empty?
+      Cache.fetch(cache_key, ttl: 10 * 60) do  # 10 minute TTL for real-time data
+        url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_id}&period=#{period}"
+        url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
+        uri = URI(url)
+        response = Net::HTTP.get_response(uri)
 
-        data_hash = data[0]
-        data_hash["data"] || []
-      else
-        []
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          next [] unless data.is_a?(Array) && !data.empty?
+
+          data_hash = data[0]
+          data_hash["data"] || []
+        else
+          []
+        end
       end
     rescue StandardError => e
       puts "Error fetching timeseries values for period: #{e.message}"
@@ -450,20 +468,22 @@ module Grca
 
     # Get all stations with their coordinates
     def get_all_stations_with_coords
-      uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getStationList&datasource=0&format=json&returnfields=station_name,station_no,station_latitude,station_longitude")
-      response = Net::HTTP.get_response(uri)
+      Cache.fetch("stations_with_coords") do
+        uri = URI("#{api_base_url}?service=kisters&type=queryServices&request=getStationList&datasource=0&format=json&returnfields=station_name,station_no,station_latitude,station_longitude")
+        response = Net::HTTP.get_response(uri)
 
-      return [] if response.code != "200"
+        next [] if response.code != "200"
 
-      data = JSON.parse(response.body)
-      # Fields: station_name, station_no, station_latitude, station_longitude
-      data.drop(1).map do |row|
-        {
-          name: row[0],
-          station_no: row[1],
-          latitude: row[2],
-          longitude: row[3]
-        }
+        data = JSON.parse(response.body)
+        # Fields: station_name, station_no, station_latitude, station_longitude
+        data.drop(1).map do |row|
+          {
+            name: row[0],
+            station_no: row[1],
+            latitude: row[2],
+            longitude: row[3]
+          }
+        end
       end
     rescue StandardError => e
       puts "Error fetching stations: #{e.message}"
@@ -687,6 +707,12 @@ module Grca
     get "/map" do
       @stations = get_all_stations_with_coords
       erb :map
+    end
+
+    # Admin route to clear cache
+    get "/admin/clear_cache" do
+      Grca::Cache.clear
+      "Cache cleared"
     end
   end
 end
