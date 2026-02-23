@@ -53,7 +53,6 @@ namespace :deploy do
       [Unit]
       Description=GRCA Web Application (Thin Server)
       After=network.target
-      #{"    "}
       [Service]
       Type=simple
       User=www-data
@@ -68,7 +67,6 @@ namespace :deploy do
       StandardOutput=journal
       StandardError=journal
       SyslogIdentifier=grca
-      #{"    "}
       [Install]
       WantedBy=multi-user.target
     SERVICE
