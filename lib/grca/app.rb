@@ -682,5 +682,11 @@ module Grca
       @parameter_name = "Reservoir Storage"
       erb :parameter
     end
+
+    # Map view showing all stations
+    get "/map" do
+      @stations = get_all_stations_with_coords
+      erb :map
+    end
   end
 end
