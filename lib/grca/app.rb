@@ -54,7 +54,7 @@ module Grca
       nil
     end
 
-    # Get timeseries list for a station
+    # Get timeseries list for one or more stations (comma-separated station_no)
     def get_timeseries_list(station_no)
       # Request additional fields for human-readable names and units
       returnfields = "station_name,station_no,ts_id,ts_name,parametertype_id,parametertype_name,stationparameter_name,stationparameter_longname,ts_unitsymbol"
@@ -68,6 +68,8 @@ module Grca
         #         stationparameter_name, stationparameter_longname, ts_unitsymbol
         data.drop(1).map do |row|
           {
+            station_name: row[0],
+            station_no: row[1],
             ts_id: row[2],
             ts_name: row[3],
             param_type_id: row[4],
@@ -113,6 +115,41 @@ module Grca
     rescue StandardError => e
       puts "Error fetching timeseries value: #{e.message}"
       nil
+    end
+
+    # Get latest values for multiple timeseries (comma-separated ts_id)
+    # Returns a hash keyed by ts_id
+    def get_timeseries_values_batch(ts_ids, timezone = nil)
+      return {} if ts_ids.nil? || ts_ids.empty?
+
+      url = "#{api_base_url}?service=kisters&type=queryServices&request=getTimeseriesValues&datasource=0&format=json&ts_id=#{ts_ids}"
+      url += "&timezone=#{URI.encode_www_form_component(timezone)}" if timezone && !timezone.empty?
+      uri = URI(url)
+      response = Net::HTTP.get_response(uri)
+
+      if response.code == "200"
+        data = JSON.parse(response.body)
+        return {} unless data.is_a?(Array)
+
+        # When requesting multiple ts_ids, the API returns an array of results
+        # Each element contains ts_id and its data
+        results = {}
+        data.each do |ts_data|
+          ts_id = ts_data["ts_id"]
+          next unless ts_data["data"] && !ts_data["data"].empty?
+
+          results[ts_id] = {
+            timestamp: ts_data["data"][0][0],
+            value: ts_data["data"][0][1]
+          }
+        end
+        results
+      else
+        {}
+      end
+    rescue StandardError => e
+      puts "Error fetching timeseries values batch: #{e.message}"
+      {}
     end
 
     # Check if a timestamp is too old (more than 30 days)
@@ -393,44 +430,60 @@ module Grca
       []
     end
 
-    # Get a specific parameter value from all stations
+    # Get a specific parameter value from all stations (optimized with batch queries)
     def get_parameter_across_stations(param_type, timezone = nil)
       stations = get_all_stations_with_coords
+      return [] if stations.empty?
+
+      # Batch fetch timeseries for all stations at once
+      station_nos = stations.map { |s| s[:station_no] }.join(",")
+      all_timeseries = get_timeseries_list(station_nos)
+
+      # Filter to current data timeseries
+      current_timeseries = all_timeseries.select do |ts|
+        ts_name = ts[:ts_name]
+        ts_name&.include?("NRT") || ts_name&.include?("PRODUCTION")
+      end
+
+      # Find matching timeseries for each station
+      matching_ts_by_station = {}
+      current_timeseries.each do |ts|
+        next if matching_ts_by_station.key?(ts[:station_no])
+
+        param_name = ts[:param_type_name]&.upcase
+        param_longname = ts[:param_longname]&.downcase
+
+        is_match = case param_type
+                   when "temperature"
+                     param_name == "AT" || param_longname&.include?("air temperature")
+                   when "water_temperature"
+                     param_name == "TW" || param_longname&.include?("water temperature")
+                   when "stage"
+                     param_name == "HG" || param_longname&.include?("stage")
+                   when "flow"
+                     param_name == "QR" || param_longname&.include?("flow")
+                   when "precipitation"
+                     param_name == "P" || param_name == "PN" || param_longname&.include?("precipitation")
+                   else
+                     param_longname&.include?(param_type.downcase)
+                   end
+
+        matching_ts_by_station[ts[:station_no]] = ts if is_match
+      end
+
+      # Batch fetch values for all matching timeseries
+      ts_ids = matching_ts_by_station.values.map { |ts| ts[:ts_id] }
+      return [] if ts_ids.empty?
+
+      values_by_ts_id = get_timeseries_values_batch(ts_ids.join(","), timezone)
+
+      # Build results
       results = []
-
       stations.each do |station|
-        timeseries = get_timeseries_list(station[:station_no])
+        ts = matching_ts_by_station[station[:station_no]]
+        next unless ts
 
-        # Filter to current data timeseries
-        timeseries = timeseries.select do |ts|
-          ts_name = ts[:ts_name]
-          ts_name&.include?("NRT") || ts_name&.include?("PRODUCTION")
-        end
-
-        # Find the timeseries matching the requested parameter
-        matching_ts = timeseries.find do |ts|
-          param_name = ts[:param_type_name]&.upcase
-          param_longname = ts[:param_longname]&.downcase
-
-          case param_type
-          when "temperature"
-            param_name == "AT" || param_longname&.include?("air temperature")
-          when "water_temperature"
-            param_name == "TW" || param_longname&.include?("water temperature")
-          when "stage"
-            param_name == "HG" || param_longname&.include?("stage")
-          when "flow"
-            param_name == "QR" || param_longname&.include?("flow")
-          when "precipitation"
-            param_name == "P" || param_name == "PN" || param_longname&.include?("precipitation")
-          else
-            param_longname&.include?(param_type.downcase)
-          end
-        end
-
-        next unless matching_ts
-
-        value = get_timeseries_value(matching_ts[:ts_id], timezone)
+        value = values_by_ts_id[ts[:ts_id]]
         next unless value
 
         results << {
@@ -439,9 +492,9 @@ module Grca
           latitude: station[:latitude],
           longitude: station[:longitude],
           value: value[:value],
-          unit: matching_ts[:unit] || "",
+          unit: ts[:unit] || "",
           timestamp: value[:timestamp],
-          parameter: matching_ts[:param_longname] || matching_ts[:param_name] || matching_ts[:param_type_name]
+          parameter: ts[:param_longname] || ts[:param_name] || ts[:param_type_name]
         }
       end
 
@@ -456,27 +509,31 @@ module Grca
       []
     end
 
-    # Get precipitation cumulative values across all stations
+    # Get precipitation cumulative values across all stations (optimized with batch timeseries query)
     def get_precipitation_across_stations(timezone = nil)
       stations = get_all_stations_with_coords
+      return [] if stations.empty?
+
+      # Batch fetch timeseries for all stations at once
+      station_nos = stations.map { |s| s[:station_no] }.join(",")
+      all_timeseries = get_timeseries_list(station_nos)
+
+      # Filter to current data timeseries and find precipitation timeseries per station
+      station_precip_ts = {}
+      all_timeseries.each do |ts|
+        ts_name = ts[:ts_name]
+        next unless ts_name&.include?("NRT") || ts_name&.include?("PRODUCTION")
+
+        param_name = ts[:param_type_name]&.upcase
+        param_longname = ts[:param_longname]&.downcase
+        is_precip = param_name == "P" || param_name == "PN" || param_longname&.include?("precipitation")
+
+        station_precip_ts[ts[:station_no]] = ts if is_precip && !station_precip_ts.key?(ts[:station_no])
+      end
+
       results = []
-
       stations.each do |station|
-        timeseries = get_timeseries_list(station[:station_no])
-
-        # Filter to current data timeseries
-        timeseries = timeseries.select do |ts|
-          ts_name = ts[:ts_name]
-          ts_name&.include?("NRT") || ts_name&.include?("PRODUCTION")
-        end
-
-        # Find precipitation timeseries
-        precip_ts = timeseries.find do |ts|
-          param_name = ts[:param_type_name]&.upcase
-          param_longname = ts[:param_longname]&.downcase
-          param_name == "P" || param_name == "PN" || param_longname&.include?("precipitation")
-        end
-
+        precip_ts = station_precip_ts[station[:station_no]]
         next unless precip_ts
 
         precip_data = get_cumulative_precipitation(precip_ts[:ts_id], timezone)
