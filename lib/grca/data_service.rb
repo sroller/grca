@@ -265,6 +265,15 @@ module Grca
           [1, m[:parameter].to_s.downcase]
         end
       end
+      
+      # Return station data hash
+      {
+        name: station[:name],
+        station_no: station[:station_no],
+        latitude: station[:latitude],
+        longitude: station[:longitude],
+        measurements: measurements
+      }
     end
 
     # Get parameter data across all stations
