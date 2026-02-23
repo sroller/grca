@@ -19,24 +19,34 @@ namespace :deploy do
     sh "bundle install --deployment --without development test"
     puts "Gems installed successfully!"
   end
-
+  
   desc "Deploy nginx configuration to /etc/nginx/sites-available"
   task :nginx_config do
     require "fileutils"
-
+      
     nginx_config = File.join(__dir__, "nginx.example.conf")
     destination = "/etc/nginx/sites-available/grca"
-
+      
     abort "Error: nginx.example.conf not found in project root" unless File.exist?(nginx_config)
-
+      
     puts "Deploying nginx configuration to #{destination}..."
-
+      
     # Check if running as root or with sudo
-    abort "Error: This task must be run with sudo privileges" unless Process.uid.zero?
-
+    unless Process.uid.zero?
+      puts "\n" + "="*60
+      puts "ERROR: This task requires sudo privileges"
+      puts "="*60
+      puts "\nPlease run with sudo:"
+      puts "  sudo rake deploy:nginx_config"
+      puts "\nOr use bundle exec:"
+      puts "  sudo bundle exec rake deploy:nginx_config"
+      puts "="*60
+      abort "Error: This task must be run with sudo privileges"
+    end
+      
     FileUtils.cp(nginx_config, destination)
     FileUtils.chmod 0o644, destination
-
+      
     puts "Nginx configuration deployed successfully!"
     puts "\nNext steps:"
     puts "1. Edit #{destination} to match your domain and paths"
@@ -48,11 +58,12 @@ namespace :deploy do
   desc "Create systemd service file for GRCA app"
   task :systemd_service do
     require "fileutils"
-
+      
     service_content = <<~SERVICE
       [Unit]
       Description=GRCA Web Application (Thin Server)
       After=network.target
+        
       [Service]
       Type=simple
       User=www-data
@@ -67,20 +78,31 @@ namespace :deploy do
       StandardOutput=journal
       StandardError=journal
       SyslogIdentifier=grca
+        
       [Install]
       WantedBy=multi-user.target
     SERVICE
-
+      
     destination = "/etc/systemd/system/grca.service"
-
+      
     puts "Creating systemd service file at #{destination}..."
-
+      
     # Check if running as root or with sudo
-    abort "Error: This task must be run with sudo privileges" unless Process.uid.zero?
-
+    unless Process.uid.zero?
+      puts "\n" + "="*60
+      puts "ERROR: This task requires sudo privileges"
+      puts "="*60
+      puts "\nPlease run with sudo:"
+      puts "  sudo rake deploy:systemd_service"
+      puts "\nOr use bundle exec:"
+      puts "  sudo bundle exec rake deploy:systemd_service"
+      puts "="*60
+      abort "Error: This task must be run with sudo privileges"
+    end
+      
     File.write(destination, service_content)
     FileUtils.chmod 0o644, destination
-
+      
     puts "Systemd service file created successfully!"
     puts "\nNext steps:"
     puts "1. Reload systemd daemon: systemctl daemon-reload"
@@ -92,17 +114,27 @@ namespace :deploy do
   desc "Copy web application files to /var/www/grca"
   task :copy_files do
     require "fileutils"
-
+      
     destination = "/var/www/grca"
-
+      
     puts "Copying web application files to #{destination}..."
-
+      
     # Check if running as root or with sudo
-    abort "Error: This task must be run with sudo privileges" unless Process.uid.zero?
-
+    unless Process.uid.zero?
+      puts "\n" + "="*60
+      puts "ERROR: This task requires sudo privileges"
+      puts "="*60
+      puts "\nPlease run with sudo:"
+      puts "  sudo rake deploy:copy_files"
+      puts "\nOr use bundle exec:"
+      puts "  sudo bundle exec rake deploy:copy_files"
+      puts "="*60
+      abort "Error: This task must be run with sudo privileges"
+    end
+      
     # Create destination directory
     FileUtils.mkdir_p(destination)
-
+      
     # Files and directories to copy
     files_to_copy = [
       "lib",
@@ -112,12 +144,12 @@ namespace :deploy do
       "bin/grca_web",
       "config.ru"
     ]
-
+      
     # Copy each file/directory
     files_to_copy.each do |file|
       source = File.join(__dir__, file)
       dest = File.join(destination, file)
-
+        
       if File.directory?(source)
         puts "  Copying directory: #{file}"
         FileUtils.rm_rf(dest)
@@ -127,33 +159,45 @@ namespace :deploy do
         FileUtils.cp(source, dest)
       end
     end
-
-    # Create log directory for Puma logs
+      
+    # Create log directory for Thin logs
     puts "Creating log directory..."
     FileUtils.mkdir_p("/var/log/grca")
     FileUtils.chown_R("www-data", "www-data", "/var/log/grca")
-
+      
     # Set proper ownership
     puts "Setting ownership to www-data..."
     FileUtils.chown_R("www-data", "www-data", destination)
-
+      
     # Make grca_web executable
     FileUtils.chmod(0o755, File.join(destination, "bin", "grca_web"))
-
+      
     puts "\nWeb application files copied successfully!"
     puts "\nNext steps:"
-    puts "1. Run: rake deploy:install_gems"
-    puts "2. Run: rake deploy:systemd_service"
-    puts "3. Run: rake deploy:nginx_config"
+    puts "1. Run: sudo rake deploy:install_gems (in /var/www/grca)"
+    puts "2. Run: sudo rake deploy:systemd_service"
+    puts "3. Run: sudo rake deploy:nginx_config"
     puts "4. Configure nginx and enable the site"
   end
 
   desc "Complete deployment - runs all deployment tasks"
-  task all: %i[install_gems copy_files systemd_service nginx_config] do
-    puts "\n#{"=" * 60}"
-    puts "Deployment complete!"
-    puts "=" * 60
-    puts "\nFinal steps:"
+  task :all do
+    puts "\n" + "="*60
+    puts "DEPLOYMENT GUIDE - Complete Deployment Steps"
+    puts "="*60
+    puts "\nThis task requires sudo privileges for system-level operations."
+    puts "\nTo deploy, run each step with sudo:"
+    puts "\nStep 1: Copy files to deployment location"
+    puts "  sudo rake deploy:copy_files"
+    puts "\nStep 2: Install gems (run from /var/www/grca)"
+    puts "  cd /var/www/grca && sudo rake deploy:install_gems"
+    puts "\nStep 3: Create systemd service"
+    puts "  sudo rake deploy:systemd_service"
+    puts "\nStep 4: Deploy nginx configuration"
+    puts "  sudo rake deploy:nginx_config"
+    puts "\n" + "="*60
+    puts "After deployment:"
+    puts "="*60
     puts "1. Edit /etc/nginx/sites-available/grca to match your domain"
     puts "2. Enable nginx site: ln -s /etc/nginx/sites-available/grca /etc/nginx/sites-enabled/"
     puts "3. Test nginx: nginx -t"
@@ -162,6 +206,6 @@ namespace :deploy do
     puts "6. Start service: systemctl start grca"
     puts "7. Reload nginx: systemctl reload nginx"
     puts "8. Check status: systemctl status grca"
-    puts "=" * 60
+    puts "="*60
   end
 end
