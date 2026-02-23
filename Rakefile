@@ -38,8 +38,8 @@ namespace :deploy do
       puts "="*60
       puts "\nPlease run with sudo:"
       puts "  sudo rake deploy:nginx_config"
-      puts "\nOr use bundle exec:"
-      puts "  sudo bundle exec rake deploy:nginx_config"
+      puts "\nOr if using RVM:"
+      puts "  rvmsudo rake deploy:nginx_config"
       puts "="*60
       abort "Error: This task must be run with sudo privileges"
     end
@@ -59,29 +59,61 @@ namespace :deploy do
   task :systemd_service do
     require "fileutils"
       
-    service_content = <<~SERVICE
-      [Unit]
-      Description=GRCA Web Application (Thin Server)
-      After=network.target
-        
-      [Service]
-      Type=simple
-      User=www-data
-      Group=www-data
-      WorkingDirectory=/var/www/grca
-      Environment="BUNDLE_GEMFILE=/var/www/grca/Gemfile"
-      Environment="RACK_ENV=production"
-      # Use Thin for fast, lightweight web serving
-      ExecStart=/usr/bin/bundle exec thin -e production -p 4567 -P /tmp/grca.pid -l /tmp/grca.log start
-      Restart=always
-      RestartSec=5
-      StandardOutput=journal
-      StandardError=journal
-      SyslogIdentifier=grca
-        
-      [Install]
-      WantedBy=multi-user.target
-    SERVICE
+    # Detect RVM installation
+    rvm_installed = system("command -v rvm >/dev/null 2>&1")
+    rvm_wrapper_path = "/usr/local/rvm/gems/$(ruby -v | cut -d' ' -f1)/bin/wrapper"
+      
+    service_content = if rvm_installed
+      # Use RVM wrapper for systemd
+      <<~SERVICE
+        [Unit]
+        Description=GRCA Web Application (Thin Server)
+        After=network.target
+          
+        [Service]
+        Type=simple
+        User=www-data
+        Group=www-data
+        WorkingDirectory=/var/www/grca
+        Environment="BUNDLE_GEMFILE=/var/www/grca/Gemfile"
+        Environment="RACK_ENV=production"
+        # Use RVM wrapper script to run Thin with correct Ruby version
+        ExecStart=#{rvm_wrapper_path} thin -e production -p 4567 -P /tmp/grca.pid -l /tmp/grca.log start
+        Restart=always
+        RestartSec=5
+        StandardOutput=journal
+        StandardError=journal
+        SyslogIdentifier=grca
+          
+        [Install]
+        WantedBy=multi-user.target
+      SERVICE
+    else
+      # Fallback to bundle exec
+      <<~SERVICE
+        [Unit]
+        Description=GRCA Web Application (Thin Server)
+        After=network.target
+          
+        [Service]
+        Type=simple
+        User=www-data
+        Group=www-data
+        WorkingDirectory=/var/www/grca
+        Environment="BUNDLE_GEMFILE=/var/www/grca/Gemfile"
+        Environment="RACK_ENV=production"
+        # Use Thin for fast, lightweight web serving
+        ExecStart=/usr/bin/bundle exec thin -e production -p 4567 -P /tmp/grca.pid -l /tmp/grca.log start
+        Restart=always
+        RestartSec=5
+        StandardOutput=journal
+        StandardError=journal
+        SyslogIdentifier=grca
+          
+        [Install]
+        WantedBy=multi-user.target
+      SERVICE
+    end
       
     destination = "/etc/systemd/system/grca.service"
       
@@ -94,8 +126,8 @@ namespace :deploy do
       puts "="*60
       puts "\nPlease run with sudo:"
       puts "  sudo rake deploy:systemd_service"
-      puts "\nOr use bundle exec:"
-      puts "  sudo bundle exec rake deploy:systemd_service"
+      puts "\nOr if using RVM:"
+      puts "  rvmsudo rake deploy:systemd_service"
       puts "="*60
       abort "Error: This task must be run with sudo privileges"
     end
@@ -109,6 +141,10 @@ namespace :deploy do
     puts "2. Enable service: systemctl enable grca"
     puts "3. Start service: systemctl start grca"
     puts "4. Check status: systemctl status grca"
+      
+    if rvm_installed
+      puts "\nNote: Service configured to use RVM wrapper for Ruby environment."
+    end
   end
 
   desc "Copy web application files to /var/www/grca"
@@ -126,8 +162,8 @@ namespace :deploy do
       puts "="*60
       puts "\nPlease run with sudo:"
       puts "  sudo rake deploy:copy_files"
-      puts "\nOr use bundle exec:"
-      puts "  sudo bundle exec rake deploy:copy_files"
+      puts "\nOr if using RVM:"
+      puts "  rvmsudo rake deploy:copy_files"
       puts "="*60
       abort "Error: This task must be run with sudo privileges"
     end
@@ -142,13 +178,16 @@ namespace :deploy do
       "Gemfile",
       "Gemfile.lock",
       "bin/grca_web",
-      "config.ru"
+      "config.ru",
+      ".ruby-version"  # Copy RVM version file if it exists
     ]
       
     # Copy each file/directory
     files_to_copy.each do |file|
       source = File.join(__dir__, file)
       dest = File.join(destination, file)
+        
+      next unless File.exist?(source)
         
       if File.directory?(source)
         puts "  Copying directory: #{file}"
@@ -174,10 +213,13 @@ namespace :deploy do
       
     puts "\nWeb application files copied successfully!"
     puts "\nNext steps:"
-    puts "1. Run: sudo rake deploy:install_gems (in /var/www/grca)"
-    puts "2. Run: sudo rake deploy:systemd_service"
-    puts "3. Run: sudo rake deploy:nginx_config"
+    puts "1. Run: rvmsudo rake deploy:install_gems (in /var/www/grca)"
+    puts "   OR: sudo -E rake deploy:install_gems (preserves your environment)"
+    puts "2. Run: rvmsudo rake deploy:systemd_service"
+    puts "3. Run: rvmsudo rake deploy:nginx_config"
     puts "4. Configure nginx and enable the site"
+    puts "\nNote: Use 'rvmsudo' instead of 'sudo' to preserve RVM environment,"
+    puts "      or use 'sudo -E' to preserve your environment variables."
   end
 
   desc "Complete deployment - runs all deployment tasks"
@@ -186,15 +228,23 @@ namespace :deploy do
     puts "DEPLOYMENT GUIDE - Complete Deployment Steps"
     puts "="*60
     puts "\nThis task requires sudo privileges for system-level operations."
-    puts "\nTo deploy, run each step with sudo:"
-    puts "\nStep 1: Copy files to deployment location"
+    puts "\nRVM USERS: Use 'rvmsudo' or 'sudo -E' to preserve your Ruby environment:"
+    puts "  rvmsudo rake deploy:copy_files"
+    puts "  cd /var/www/grca && rvmsudo rake deploy:install_gems"
+    puts "\nSTANDARD SUDO (may not work with RVM):"
     puts "  sudo rake deploy:copy_files"
-    puts "\nStep 2: Install gems (run from /var/www/grca)"
     puts "  cd /var/www/grca && sudo rake deploy:install_gems"
+    puts "\n" + "="*60
+    puts "Deployment Steps:"
+    puts "="*60
+    puts "\nStep 1: Copy files to deployment location"
+    puts "  rvmsudo rake deploy:copy_files"
+    puts "\nStep 2: Install gems (run from /var/www/grca)"
+    puts "  cd /var/www/grca && rvmsudo rake deploy:install_gems"
     puts "\nStep 3: Create systemd service"
-    puts "  sudo rake deploy:systemd_service"
+    puts "  rvmsudo rake deploy:systemd_service"
     puts "\nStep 4: Deploy nginx configuration"
-    puts "  sudo rake deploy:nginx_config"
+    puts "  rvmsudo rake deploy:nginx_config"
     puts "\n" + "="*60
     puts "After deployment:"
     puts "="*60
@@ -206,6 +256,13 @@ namespace :deploy do
     puts "6. Start service: systemctl start grca"
     puts "7. Reload nginx: systemctl reload nginx"
     puts "8. Check status: systemctl status grca"
+    puts "="*60
+    puts "\nALTERNATIVE: Manual deployment without RVM"
+    puts "-"*60
+    puts "If you prefer not to use RVM for the systemd service:"
+    puts "1. Install Ruby system-wide: apt install ruby-full"
+    puts "2. Install gems: sudo gem install thin bundler"
+    puts "3. The systemd service will use bundle exec automatically"
     puts "="*60
   end
 end
