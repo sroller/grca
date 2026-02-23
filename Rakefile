@@ -169,16 +169,15 @@ namespace :deploy do
     # Create destination directory
     FileUtils.mkdir_p(destination)
 
-    # Files and directories to copy
+    # Files and directories to copy for production deployment
+    # Note: Rakefile and gemspec are NOT needed - only runtime files
     files_to_copy = [
-      "lib",
-      "views",
-      "Gemfile",
-      "Gemfile.lock",
-      "bin/grca_web",
-      "config.ru",
-      "Rakefile",  # For deployment tasks
-      "grca.gemspec"  # Required by Gemfile
+      "lib",       # Application code
+      "views",     # ERB templates
+      "Gemfile",   # Gem dependencies
+      "Gemfile.lock",  # Locked gem versions
+      "bin/grca_web",  # Web server launcher
+      "config.ru"      # Rack configuration file
     ]
 
     # Copy each file/directory
