@@ -101,8 +101,8 @@
                                 <tr>
                                     <th>Station</th>
                                     <th>Value</th>
-                                    <% if @parameter_data.any? { |d| d[:summer_low_percent] } %>
-                                        <th>% Summer Low</th>
+                                    <% if @parameter_data.any? { |d| d[:baseline_percent] } %>
+                                        <th>% Baseline</th>
                                     <% end %>
                                     <th>Time</th>
                                     <th>Location</th>
@@ -115,11 +115,11 @@
                                             <a href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
                                         </td>
                                         <td class="fw-bold"><%= format_value(data[:value]) %> <%= format_unit(data[:unit]) %></td>
-                                        <% if @parameter_data.any? { |d| d[:summer_low_percent] } %>
+                                        <% if @parameter_data.any? { |d| d[:baseline_percent] } %>
                                             <td>
-                                                <% if data[:summer_low_percent] %>
-                                                    <% percent_class = data[:summer_low_percent] < 70 ? 'percent-low' : (data[:summer_low_percent] > 100 ? 'percent-high' : 'percent-normal') %>
-                                                    <span class="<%= percent_class %>"><%= data[:summer_low_percent] %>%</span>
+                                                <% if data[:baseline_percent] %>
+                                                    <% percent_class = data[:baseline_percent] < 70 ? 'percent-low' : (data[:baseline_percent] > 100 ? 'percent-high' : 'percent-normal') %>
+                                                    <span class="<%= percent_class %>"><%= data[:baseline_percent] %>%</span>
                                                 <% else %>
                                                     <span class="text-muted">-</span>
                                                 <% end %>

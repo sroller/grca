@@ -93,15 +93,15 @@
 
                 <h4 class="mb-3">Current Measurements</h4>
                 <% if @station_data[:measurements] && !@station_data[:measurements].empty? %>
-                    <% has_flow_percent = @station_data[:measurements].any? { |m| m[:summer_low_percent] } %>
+                    <% has_baseline_percent = @station_data[:measurements].any? { |m| m[:baseline_percent] } %>
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
                                     <th>Parameter</th>
                                     <th>Value</th>
-                                    <% if has_flow_percent %>
-                                        <th>% Summer Low</th>
+                                    <% if has_baseline_percent %>
+                                        <th>% Baseline</th>
                                     <% end %>
                                     <th>Time</th>
                                 </tr>
@@ -111,11 +111,11 @@
                                     <tr>
                                         <td><%= measurement[:parameter] %></td>
                                         <td class="fw-bold"><%= format_value(measurement[:value]) %><% if measurement[:unit] && !measurement[:unit].empty? %> <%= format_unit(measurement[:unit]) %><% end %></td>
-                                        <% if has_flow_percent %>
+                                        <% if has_baseline_percent %>
                                             <td>
-                                                <% if measurement[:summer_low_percent] %>
-                                                    <% percent_class = measurement[:summer_low_percent] < 70 ? 'percent-low' : (measurement[:summer_low_percent] > 100 ? 'percent-high' : 'percent-normal') %>
-                                                    <span class="<%= percent_class %>"><%= measurement[:summer_low_percent] %>%</span>
+                                                <% if measurement[:baseline_percent] %>
+                                                    <% percent_class = measurement[:baseline_percent] < 70 ? 'percent-low' : (measurement[:baseline_percent] > 100 ? 'percent-high' : 'percent-normal') %>
+                                                    <span class="<%= percent_class %>"><%= measurement[:baseline_percent] %>%</span>
                                                 <% else %>
                                                     <span class="text-muted">-</span>
                                                 <% end %>

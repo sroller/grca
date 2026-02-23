@@ -6,6 +6,7 @@ require "json"
 require "net/http"
 require "uri"
 require_relative "summer_low_reference"
+require_relative "stage_reference"
 
 module Grca
   class App < Sinatra::Base
@@ -44,7 +45,7 @@ module Grca
       return "" if unit.nil? || unit.empty?
 
       # Use superscript ³ (U+00B3) for cubic meter (case-insensitive)
-      unit.gsub(/m3\/s/i, "m³/s").gsub(/m3/i, "m³")
+      unit.gsub(%r{m3/s}i, "m³/s").gsub(/m3/i, "m³")
     end
 
     # Get list of stations from GRCA API
@@ -368,7 +369,12 @@ module Grca
 
         # Add summer low percentage for flow measurements
         if param_name == "QR" || param_longname&.include?("flow")
-          measurement[:summer_low_percent] = Grca.summer_low_percentage(station_name, value[:value].to_f)
+          measurement[:baseline_percent] = Grca.summer_low_percentage(station_name, value[:value].to_f)
+        end
+
+        # Add baseline percentage for stage measurements
+        if param_name == "HG" || param_longname&.include?("stage")
+          measurement[:baseline_percent] = Grca.stage_percentage(station_name, value[:value].to_f)
         end
 
         measurements << measurement
@@ -535,9 +541,11 @@ module Grca
           parameter: ts[:param_longname] || ts[:param_name] || ts[:param_type_name]
         }
 
-        # Add summer low percentage for flow parameter
+        # Add baseline percentage for flow and stage parameters
         if param_type == "flow"
-          result[:summer_low_percent] = Grca.summer_low_percentage(station[:name], value[:value].to_f)
+          result[:baseline_percent] = Grca.summer_low_percentage(station[:name], value[:value].to_f)
+        elsif param_type == "stage"
+          result[:baseline_percent] = Grca.stage_percentage(station[:name], value[:value].to_f)
         end
 
         results << result
