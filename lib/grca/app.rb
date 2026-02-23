@@ -464,6 +464,10 @@ module Grca
                      param_name == "QR" || param_longname&.include?("flow")
                    when "precipitation"
                      param_name == "P" || param_name == "PN" || param_longname&.include?("precipitation")
+                   when "reservoir_level"
+                     param_name == "H" || param_longname&.include?("reservoir level") || param_longname&.include?("lake level")
+                   when "reservoir_volume"
+                     param_name == "V" || param_longname&.include?("reservoir volume") || param_longname&.include?("lake volume")
                    else
                      param_longname&.include?(param_type.downcase)
                    end
@@ -613,6 +617,21 @@ module Grca
       timezone = params[:timezone]
       @precipitation_data = get_precipitation_across_stations(timezone)
       erb :precipitation
+    end
+
+    # Lakes & Dams parameter routes
+    get "/parameter/reservoir_level" do
+      timezone = params[:timezone]
+      @parameter_data = get_parameter_across_stations("reservoir_level", timezone)
+      @parameter_name = "Reservoir/Lake Level"
+      erb :parameter
+    end
+
+    get "/parameter/reservoir_volume" do
+      timezone = params[:timezone]
+      @parameter_data = get_parameter_across_stations("reservoir_volume", timezone)
+      @parameter_name = "Reservoir/Lake Volume"
+      erb :parameter
     end
   end
 end
