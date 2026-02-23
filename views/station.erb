@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GRCA - <%= @station_data[:name] %></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c5e8a;
+            text-align: center;
+        }
+        .station-info {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .data-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .data-item:last-child {
+            border-bottom: none;
+        }
+        .data-label {
+            font-weight: bold;
+            color: #2c5e8a;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .back-link a {
+            color: #2c5e8a;
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+        .measurement-value {
+            font-weight: bold;
+        }
+        .map-link {
+            color: #2c5e8a;
+            text-decoration: none;
+        }
+        .map-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><%= @station_data[:name] %></h1>
+
+        <div class="station-info">
+            <div class="data-item">
+                <span class="data-label">Station Number:</span> <%= @station_data[:station_no] %>
+            </div>
+            <% if @station_data[:latitude] && @station_data[:longitude] %>
+            <div class="data-item">
+                <span class="data-label">Location:</span>
+                <a class="map-link" href="https://www.google.com/maps?q=<%= @station_data[:latitude] %>,<%= @station_data[:longitude] %>" target="_blank" rel="noopener noreferrer">
+                    View on Google Maps
+                </a>
+            </div>
+            <% end %>
+        </div>
+
+        <h2>Current Measurements</h2>
+        <% if @station_data[:measurements] && !@station_data[:measurements].empty? %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% @station_data[:measurements].each do |measurement| %>
+                        <tr>
+                            <td><%= measurement[:parameter] %></td>
+                            <td class="measurement-value"><%= measurement[:value] %><% if measurement[:unit] && !measurement[:unit].empty? %> <%= measurement[:unit] %><% end %></td>
+                            <td class="timestamp" data-timestamp="<%= measurement[:time] %>"><%= measurement[:time] %></td>
+                        </tr>
+                    <% end %>
+                </tbody>
+            </table>
+        <% else %>
+            <p>No measurement data available for this station.</p>
+        <% end %>
+
+        <div class="back-link">
+            <a href="/">← Back to Station List</a>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('td.timestamp').forEach(function(td) {
+                const timestamp = td.getAttribute('data-timestamp');
+                if (timestamp) {
+                    const date = new Date(timestamp);
+                    if (!isNaN(date.getTime())) {
+                        td.textContent = date.toLocaleString();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

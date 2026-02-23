@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GRCA - Precipitation Overview</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c5e8a;
+            text-align: center;
+        }
+        .nav-links {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav-links a {
+            color: #2c5e8a;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #2c5e8a;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .value {
+            font-weight: bold;
+        }
+        .station-link {
+            color: #2c5e8a;
+            text-decoration: none;
+        }
+        .station-link:hover {
+            text-decoration: underline;
+        }
+        .map-link {
+            color: #2c5e8a;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        .map-link:hover {
+            text-decoration: underline;
+        }
+        .no-data {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+        .highlight-heavy {
+            background-color: #fff3cd;
+        }
+        .highlight-very-heavy {
+            background-color: #f8d7da;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Precipitation Overview</h1>
+
+        <div class="nav-links">
+            <a href="/">Station List</a> |
+            <a href="/parameter/temperature">Temperature</a> |
+            <a href="/parameter/water_temperature">Water Temp</a> |
+            <a href="/parameter/stage">Stage</a> |
+            <a href="/parameter/flow">Flow</a> |
+            <a href="/parameter/precipitation">Precipitation</a>
+        </div>
+
+        <% if @precipitation_data && !@precipitation_data.empty? %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Station</th>
+                        <th>24 hours</th>
+                        <th>72 hours</th>
+                        <th>7 days</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% @precipitation_data.each do |data| %>
+                        <% 
+                          row_class = ""
+                          if data[:precip_24h] && data[:precip_24h] >= 25
+                            row_class = "highlight-very-heavy"
+                          elsif data[:precip_24h] && data[:precip_24h] >= 10
+                            row_class = "highlight-heavy"
+                          end
+                        %>
+                        <tr class="<%= row_class %>">
+                            <td>
+                                <a class="station-link" href="/station?station=<%= URI.encode_www_form_component(data[:station_name]) %>"><%= data[:station_name] %></a>
+                            </td>
+                            <td class="value"><%= data[:precip_24h] %> <%= data[:unit] %></td>
+                            <td class="value"><%= data[:precip_72h] %> <%= data[:unit] %></td>
+                            <td class="value"><%= data[:precip_7d] %> <%= data[:unit] %></td>
+                            <td>
+                                <% if data[:latitude] && data[:longitude] %>
+                                    <a class="map-link" href="https://www.google.com/maps?q=<%= data[:latitude] %>,<%= data[:longitude] %>" target="_blank" rel="noopener noreferrer">Map</a>
+                                <% end %>
+                            </td>
+                        </tr>
+                    <% end %>
+                </tbody>
+            </table>
+        <% else %>
+            <p class="no-data">No precipitation data available.</p>
+        <% end %>
+
+        <div class="nav-links" style="margin-top: 20px;">
+            <a href="/">← Back to Station List</a>
+        </div>
+    </div>
+</body>
+</html>
