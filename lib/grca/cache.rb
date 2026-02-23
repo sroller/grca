@@ -47,6 +47,7 @@ module Grca
       end
 
       def redis_client
+        require "redis"
         @redis_client ||= Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
       end
 
