@@ -43,9 +43,8 @@ module Grca
     def format_unit(unit)
       return "" if unit.nil? || unit.empty?
 
-      # Replace m3 with m³ (cubic meter)
-      # Replace m3/s with m³/s
-      unit.gsub("m3/s", "m³/s").gsub("m3", "m³")
+      # Use U+33A5 (㎥) for cubic meter
+      unit.gsub("m3/s", "㎥/s").gsub("m3", "㎥")
     end
 
     # Get list of stations from GRCA API
