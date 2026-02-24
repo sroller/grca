@@ -53,6 +53,8 @@
             <div class="card-body">
                 <p class="lead text-center">Select a station to view current sensor data:</p>
 
+                <!-- DEBUG: SCRIPT_NAME = <%= request.env["SCRIPT_NAME"] || "nil" %> -->
+                
                 <form action="<%= url_for('/station') %>" method="get" id="stationForm">
                     <input type="hidden" name="timezone" id="timezone" value="">
                     <div class="mb-3">
