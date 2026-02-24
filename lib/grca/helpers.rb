@@ -33,7 +33,8 @@ module Grca
     # This allows the app to work under a subdirectory in nginx
     def url_for(path)
       # Get the base path from SCRIPT_NAME (set by nginx)
-      script_name = request.env["SCRIPT_NAME"] || ""
+      # Note: nginx passes this as HTTP_SCRIPT_NAME which Rack converts
+      script_name = request.env["HTTP_SCRIPT_NAME"] || request.env["SCRIPT_NAME"] || ""
       # Log for debugging
       logger.info "url_for called: script_name='#{script_name}', path='#{path}'"
       # Ensure path starts with /
