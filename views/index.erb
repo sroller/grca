@@ -53,12 +53,12 @@
             <div class="card-body">
                 <p class="lead text-center">Select a station to view current sensor data:</p>
 
-                <div style="background: yellow; color: black; padding: 5px; font-weight: bold;">
-                    DEBUG:<br>
-                    SCRIPT_NAME = "<%= request.env["SCRIPT_NAME"] || "nil" %>"<br>
-                    PATH_INFO = "<%= request.env["PATH_INFO"] || "nil" %>"<br>
-                    REQUEST_URI = "<%= request.env["REQUEST_URI"] || "nil" %>"<br>
-                    script_name helper = "<%= request.script_name rescue "not available" %>"
+                <div style="background: yellow; color: black; padding: 5px; font-weight: bold; font-size: 10px;">
+                    <% request.env.sort.each do |k, v| %>
+                        <% if k.include?("SCRIPT") || k.include?("PATH") || k.include?("URI") || k.include?("NAME") %>
+                            <%= k %> = "<%= v %>"<br>
+                        <% end %>
+                    <% end %>
                 </div>
                 
                 <form action="<%= url_for('/station') %>" method="get" id="stationForm">
