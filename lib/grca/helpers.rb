@@ -35,13 +35,9 @@ module Grca
       # Get the base path from SCRIPT_NAME (set by nginx)
       # Note: nginx passes this as HTTP_SCRIPT_NAME which Rack converts
       script_name = request.env["HTTP_SCRIPT_NAME"] || request.env["SCRIPT_NAME"] || ""
-      # Log for debugging
-      logger.info "url_for called: script_name='#{script_name}', path='#{path}'"
       # Ensure path starts with /
       path = "/#{path}" unless path.start_with?("/")
-      result = "#{script_name}#{path}"
-      logger.info "url_for result: '#{result}'"
-      result
+      "#{script_name}#{path}"
     end
 
     # Check if current path matches the given path
