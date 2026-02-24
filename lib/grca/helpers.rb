@@ -34,10 +34,13 @@ module Grca
     def url_for(path)
       # Get the base path from SCRIPT_NAME (set by nginx)
       script_name = request.env["SCRIPT_NAME"] || ""
+      # Log for debugging
+      logger.info "url_for called: script_name='#{script_name}', path='#{path}'"
       # Ensure path starts with /
       path = "/#{path}" unless path.start_with?("/")
-      # Combine base path with the requested path
-      "#{script_name}#{path}"
+      result = "#{script_name}#{path}"
+      logger.info "url_for result: '#{result}'"
+      result
     end
 
     # Check if current path matches the given path
