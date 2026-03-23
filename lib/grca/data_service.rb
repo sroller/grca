@@ -504,6 +504,104 @@ module Grca
       end.sort_by { |r| r[:station_name] }
     end
 
+    # Get reservoir level (elevation) data across all stations with historical values
+    def get_reservoir_level_across_stations(timezone = nil)
+      stations = get_all_stations_with_coords
+      return [] if stations.empty?
+
+      station_nos = stations.map { |s| s[:station_no] }.join(",")
+      all_timeseries = get_timeseries_list(station_nos)
+
+      # Find elevation timeseries per station
+      station_elevation_ts = {}
+      all_timeseries.each do |ts|
+        next unless ts[:ts_name]&.include?("NRT") || ts[:ts_name]&.include?("PRODUCTION")
+
+        param_name = ts[:param_type_name]&.upcase
+        param_longname = ts[:param_longname]&.downcase || ""
+
+        if param_name == "ELEV" || param_longname.include?("elevation") || param_longname.include?("reservoir level")
+          station_elevation_ts[ts[:station_no]] ||= []
+          station_elevation_ts[ts[:station_no]] << ts
+        end
+      end
+
+      # Build results
+      results = []
+      stations.each do |station|
+        elevation_ts_list = station_elevation_ts[station[:station_no]]
+        next unless elevation_ts_list
+
+        elev_ts = elevation_ts_list.find { |ts| ts[:ts_name]&.include?("NRT") } || elevation_ts_list.first
+        elev_data = get_historical_values(elev_ts[:ts_id], timezone)
+        next unless elev_data
+
+        results << {
+          station_name: station[:name],
+          station_no: station[:station_no],
+          latitude: station[:latitude],
+          longitude: station[:longitude],
+          current: elev_data[:current],
+          value_24h: elev_data["24h"],
+          value_72h: elev_data["72h"],
+          value_7d: elev_data["7d"],
+          unit: elev_ts[:unit] || "m",
+          timestamp: elev_data[:latest_timestamp]
+        }
+      end
+
+      results.select { |r| !stale_timestamp?(r[:timestamp]) }.sort_by { |r| r[:station_name] }
+    end
+
+    # Get reservoir volume (storage) data across all stations with historical values
+    def get_reservoir_volume_across_stations(timezone = nil)
+      stations = get_all_stations_with_coords
+      return [] if stations.empty?
+
+      station_nos = stations.map { |s| s[:station_no] }.join(",")
+      all_timeseries = get_timeseries_list(station_nos)
+
+      # Find volume/storage timeseries per station
+      station_volume_ts = {}
+      all_timeseries.each do |ts|
+        next unless ts[:ts_name]&.include?("NRT") || ts[:ts_name]&.include?("PRODUCTION")
+
+        param_name = ts[:param_type_name]&.upcase
+        param_longname = ts[:param_longname]&.downcase || ""
+
+        if param_name == "V" || param_name == "VOL" || param_longname.include?("storage") || param_longname.include?("volume")
+          station_volume_ts[ts[:station_no]] ||= []
+          station_volume_ts[ts[:station_no]] << ts
+        end
+      end
+
+      # Build results
+      results = []
+      stations.each do |station|
+        volume_ts_list = station_volume_ts[station[:station_no]]
+        next unless volume_ts_list
+
+        vol_ts = volume_ts_list.find { |ts| ts[:ts_name]&.include?("NRT") } || volume_ts_list.first
+        vol_data = get_historical_values(vol_ts[:ts_id], timezone)
+        next unless vol_data
+
+        results << {
+          station_name: station[:name],
+          station_no: station[:station_no],
+          latitude: station[:latitude],
+          longitude: station[:longitude],
+          current: vol_data[:current],
+          value_24h: vol_data["24h"],
+          value_72h: vol_data["72h"],
+          value_7d: vol_data["7d"],
+          unit: vol_ts[:unit] || "m³",
+          timestamp: vol_data[:latest_timestamp]
+        }
+      end
+
+      results.select { |r| !stale_timestamp?(r[:timestamp]) }.sort_by { |r| r[:station_name] }
+    end
+
     # Get historical values at specific time points
     def get_historical_values(ts_id, timezone = nil)
       data = get_timeseries_values_for_period(ts_id, "P7D", timezone)
