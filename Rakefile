@@ -11,166 +11,36 @@ RuboCop::RakeTask.new
 
 task default: %i[test rubocop]
 
-# Parse --stage=VALUE from command line
-def parse_stage
-  ARGV.each do |arg|
-    return Regexp.last_match(1) if arg =~ /\A--stage=(.+)\z/
-  end
-  nil
-end
-
 # Deployment tasks
 namespace :deploy do
-  # Stage configuration helper
-  def stage_config
-    stage = parse_stage || ENV.fetch("STAGE", "dev")
-    case stage
-    when "prod"
-      { dir: "/var/www/grca", port: 4567, service: "grca", instance: "prod", stage: stage }
-    when "test"
-      { dir: "/var/www/grca-test", port: 4568, service: "grca-test", instance: "test", stage: stage }
-    when "dev"
-      { dir: "/var/www/grca-dev", port: 4569, service: "grca-dev", instance: "dev", stage: stage }
-    else
-      abort "Error: Unknown stage '#{stage}'. Use: --stage=prod, --stage=test, or --stage=dev"
-    end
+  STAGES = {
+    "prod" => { dir: "/var/www/grca", port: 4567, service: "grca", instance: "prod", stage: "prod" },
+    "test" => { dir: "/var/www/grca-test", port: 4568, service: "grca-test", instance: "test", stage: "test" },
+    "dev" => { dir: "/var/www/grca-dev", port: 4569, service: "grca-dev", instance: "dev", stage: "dev" }
+  }.freeze
+
+  # Require sudo helper
+  def require_sudo!(task_name)
+    return if Process.uid.zero?
+
+    puts "\n" + "=" * 60
+    puts "ERROR: This task requires sudo privileges"
+    puts "=" * 60
+    puts "\nPlease run with:"
+    puts "  rvmsudo rake #{task_name}"
+    puts "=" * 60
+    abort
   end
 
-  desc "Install all gem dependencies"
-  task :install_gems do
-    puts "Installing gems system-wide (no vendor/bundle)..."
-    # Use --system to install gems system-wide instead of in vendor/bundle
-    # This is cleaner for RVM-managed environments
-    sh "bundle config set path.system true"
-    sh "bundle install"
-    puts "Gems installed successfully!"
-    puts "\nNote: Gems are installed system-wide in your RVM environment."
-    puts "No vendor/bundle directory created."
-  end
-
-  desc "Deploy nginx configuration to /etc/nginx/sites-available"
-  task :nginx_config do
+  # Copy files for a given stage config
+  def deploy_files(config)
     require "fileutils"
 
-    config = stage_config
-    nginx_config = File.join(__dir__, "nginx.example.conf")
-    destination = "/etc/nginx/sites-available/#{config[:service]}"
-
-    abort "Error: nginx.example.conf not found in project root" unless File.exist?(nginx_config)
-
-    puts "Deploying nginx configuration to #{destination}..."
-
-    # Check if running as root or with sudo
-    unless Process.uid.zero?
-      puts "\n" + "=" * 60
-      puts "ERROR: This task requires sudo privileges"
-      puts "=" * 60
-      puts "\nPlease run with sudo:"
-      puts "  sudo rake deploy:nginx_config"
-      puts "\nOr if using RVM:"
-      puts "  rvmsudo rake deploy:nginx_config"
-      puts "=" * 60
-      abort "Error: This task must be run with sudo privileges"
-    end
-
-    FileUtils.cp(nginx_config, destination)
-    FileUtils.chmod 0o644, destination
-
-    puts "Nginx configuration deployed successfully!"
-    puts "\nNext steps:"
-    puts "1. Edit #{destination} to match your domain and paths"
-    puts "2. Enable the site: ln -s #{destination} /etc/nginx/sites-enabled/"
-    puts "3. Test nginx config: nginx -t"
-    puts "4. Reload nginx: systemctl reload nginx"
-  end
-
-  desc "Create systemd service file for GRCA app (use --stage=prod|test|dev)"
-  task :systemd_service do
-    require "fileutils"
-
-    config = stage_config
-
-    service_content = <<~SERVICE
-      [Unit]
-      Description=GRCA Web Application - #{config[:stage]} (Thin Server)
-      After=network.target
-      #{ }
-      [Service]
-      Type=simple
-      User=steffenr
-      Group=rvm
-      WorkingDirectory=#{config[:dir]}
-      Environment="BUNDLE_GEMFILE=#{config[:dir]}/Gemfile"
-      Environment="RACK_ENV=production"
-      Environment="GRCA_INSTANCE=#{config[:instance]}"
-      Environment="GRCA_PORT=#{config[:port]}"
-      Environment="GEM_HOME=/usr/local/rvm/gems/ruby-4.0.1"
-      Environment="GEM_PATH=/usr/local/rvm/gems/ruby-4.0.1:/usr/local/rvm/gems/ruby-4.0.1@global"
-      # Source RVM and run thin directly
-      ExecStart=/bin/bash -c 'source /usr/local/rvm/scripts/rvm && cd #{config[:dir]} && bundle exec thin -e production -p #{config[:port]} start'
-      Restart=always
-      RestartSec=5
-      StandardOutput=journal
-      StandardError=journal
-      SyslogIdentifier=#{config[:service]}
-      #{ }
-      [Install]
-      WantedBy=multi-user.target
-    SERVICE
-
-    destination = "/etc/systemd/system/#{config[:service]}.service"
-
-    puts "Creating systemd service file at #{destination}..."
-
-    # Check if running as root or with sudo
-    unless Process.uid.zero?
-      puts "\n" + "=" * 60
-      puts "ERROR: This task requires sudo privileges"
-      puts "=" * 60
-      puts "\nPlease run with sudo:"
-      puts "  sudo rake deploy:systemd_service"
-      puts "\nOr if using RVM:"
-      puts "  rvmsudo rake deploy:systemd_service"
-      puts "=" * 60
-      abort "Error: This task must be run with sudo privileges"
-    end
-
-    File.write(destination, service_content)
-    FileUtils.chmod 0o644, destination
-
-    puts "Systemd service file created successfully!"
-    puts "\nNext steps:"
-    puts "1. Reload systemd daemon: systemctl daemon-reload"
-    puts "2. Enable service: systemctl enable grca"
-    puts "3. Start service: systemctl start grca"
-    puts "4. Check status: systemctl status grca"
-
-    puts "\nNote: Service configured to use RVM wrapper for Ruby environment." if rvm_installed
-  end
-
-  desc "Copy web application files (use --stage=prod|test|dev)"
-  task :copy_files do
-    require "fileutils"
-
-    config = stage_config
     destination = config[:dir]
-
     puts "Copying web application files to #{destination}..."
 
-    # Check if running as root or with sudo
-    unless Process.uid.zero?
-      puts "\n" + "=" * 60
-      puts "ERROR: This task requires sudo privileges"
-      puts "=" * 60
-      puts "\nPlease run with sudo:"
-      puts "  sudo rake deploy:copy_files"
-      puts "\nOr if using RVM:"
-      puts "  rvmsudo rake deploy:copy_files"
-      puts "=" * 60
-      abort "Error: This task must be run with sudo privileges"
-    end
+    require_sudo!("deploy:#{config[:stage]}")
 
-    # Create destination directory
     FileUtils.mkdir_p(destination)
 
     # Create a production Gemfile (no gemspec dependency)
@@ -193,19 +63,11 @@ namespace :deploy do
     File.write(File.join(destination, "Gemfile"), production_gemfile)
 
     # Files and directories to copy for production deployment
-    # Note: Rakefile and gemspec are NOT needed - only runtime files
-    files_to_copy = [
-      "lib",       # Application code
-      "views",     # ERB templates
-      "bin/grca_web",  # Web server launcher
-      "config.ru"      # Rack configuration file
-    ]
+    files_to_copy = ["lib", "views", "bin/grca_web", "config.ru"]
 
-    # Copy each file/directory
     files_to_copy.each do |file|
       source = File.join(__dir__, file)
       dest = File.join(destination, file)
-
       next unless File.exist?(source)
 
       if File.directory?(source)
@@ -214,13 +76,12 @@ namespace :deploy do
         FileUtils.cp_r(source, dest)
       else
         puts "  Copying file: #{file}"
-        # Ensure parent directory exists
         FileUtils.mkdir_p(File.dirname(dest))
         FileUtils.cp(source, dest)
       end
     end
 
-    # Create log directory for Thin logs
+    # Create log directory
     log_dir = "/var/log/#{config[:service]}"
     puts "Creating log directory at #{log_dir}..."
     FileUtils.mkdir_p(log_dir)
@@ -229,46 +90,123 @@ namespace :deploy do
     # Set proper ownership
     puts "Setting ownership to steffenr:rvm..."
     FileUtils.chown_R("steffenr", "rvm", destination)
-
-    # Make grca_web executable
     FileUtils.chmod(0o755, File.join(destination, "bin", "grca_web"))
 
-    puts "\nWeb application files copied to #{destination} successfully!"
+    puts "\nDeployed to #{destination} successfully!"
     puts "Stage: #{config[:stage]} | Port: #{config[:port]} | Service: #{config[:service]}"
-    puts "\nNext steps:"
-    puts "1. Run: cd #{destination} && rvmsudo rake deploy:install_gems"
-    puts "2. Run: rvmsudo rake deploy:systemd_service --stage=#{config[:stage]}"
-    puts "3. sudo systemctl daemon-reload"
-    puts "4. sudo systemctl enable #{config[:service]}"
-    puts "5. sudo systemctl start #{config[:service]}"
+
+    # Install gems in the deployment directory
+    puts "\nInstalling gems in #{destination}..."
+    Dir.chdir(destination) do
+      sh "bundle config set --local path.system true"
+      sh "bundle install"
+    end
+    puts "Gems installed."
+
+    # Reload systemd, enable and restart the service
+    puts "\nActivating service #{config[:service]}..."
+    sh "systemctl daemon-reload"
+    sh "systemctl enable #{config[:service]}"
+    sh "systemctl restart #{config[:service]}"
+    puts "Service #{config[:service]} is running."
   end
 
-  desc "Complete deployment guide (use --stage=prod|test|dev)"
-  task :all do
-    config = stage_config
+  # Generate per-stage deploy tasks: deploy:dev, deploy:test, deploy:prod
+  STAGES.each do |name, config|
+    desc "Deploy to #{name}"
+    task name.to_sym do
+      deploy_files(config)
+    end
+  end
+
+  desc "Deploy to all stages"
+  task all: %i[dev test prod]
+
+  desc "Deploy nginx configuration to /etc/nginx/sites-available"
+  task :nginx_config do
+    require "fileutils"
+
+    nginx_config = File.join(__dir__, "nginx.example.conf")
+
+    abort "Error: nginx.example.conf not found in project root" unless File.exist?(nginx_config)
+
+    require_sudo!("deploy:nginx_config")
+
+    puts "Deploying nginx configuration..."
+    FileUtils.cp(nginx_config, "/etc/nginx/sites-available/grca")
+    FileUtils.chmod 0o644, "/etc/nginx/sites-available/grca"
+
+    puts "Nginx configuration deployed successfully!"
+    puts "\nNext steps:"
+    puts "1. Enable the site: ln -s /etc/nginx/sites-available/grca /etc/nginx/sites-enabled/"
+    puts "2. Test nginx config: nginx -t"
+    puts "3. Reload nginx: systemctl reload nginx"
+  end
+
+  desc "Create systemd service file for a stage"
+  STAGES.each do |name, config|
+    task :"systemd_#{name}" do
+      require "fileutils"
+
+      require_sudo!("deploy:systemd_#{name}")
+
+      service_content = <<~SERVICE
+        [Unit]
+        Description=GRCA Web Application - #{config[:stage]} (Thin Server)
+        After=network.target
+        #{ }
+        [Service]
+        Type=simple
+        User=steffenr
+        Group=rvm
+        WorkingDirectory=#{config[:dir]}
+        Environment="BUNDLE_GEMFILE=#{config[:dir]}/Gemfile"
+        Environment="RACK_ENV=production"
+        Environment="GRCA_INSTANCE=#{config[:instance]}"
+        Environment="GRCA_PORT=#{config[:port]}"
+        Environment="GEM_HOME=/usr/local/rvm/gems/ruby-4.0.1"
+        Environment="GEM_PATH=/usr/local/rvm/gems/ruby-4.0.1:/usr/local/rvm/gems/ruby-4.0.1@global"
+        # Source RVM and run thin directly
+        ExecStart=/bin/bash -c 'source /usr/local/rvm/scripts/rvm && cd #{config[:dir]} && bundle exec thin -e production -p #{config[:port]} start'
+        Restart=always
+        RestartSec=5
+        StandardOutput=journal
+        StandardError=journal
+        SyslogIdentifier=#{config[:service]}
+        #{ }
+        [Install]
+        WantedBy=multi-user.target
+      SERVICE
+
+      destination = "/etc/systemd/system/#{config[:service]}.service"
+      puts "Creating systemd service file at #{destination}..."
+      File.write(destination, service_content)
+      FileUtils.chmod 0o644, destination
+
+      puts "Systemd service file created for #{name}!"
+      puts "  sudo systemctl daemon-reload"
+      puts "  sudo systemctl enable #{config[:service]}"
+      puts "  sudo systemctl restart #{config[:service]}"
+    end
+  end
+
+  desc "Show deployment guide"
+  task :help do
     puts "\n" + "=" * 60
-    puts "DEPLOYMENT GUIDE - #{config[:stage].upcase} Stage"
+    puts "GRCA DEPLOYMENT"
     puts "=" * 60
-    puts "\nTarget: #{config[:dir]} | Port: #{config[:port]} | Service: #{config[:service]}"
-    puts "\n" + "=" * 60
-    puts "Deployment Steps:"
-    puts "=" * 60
-    puts "\nStep 1: Copy files to deployment location"
-    puts "  rvmsudo rake deploy:copy_files --stage=#{config[:stage]}"
-    puts "\nStep 2: Install gems (run from #{config[:dir]})"
-    puts "  cd #{config[:dir]} && rvmsudo rake deploy:install_gems"
-    puts "\nStep 3: Create systemd service"
-    puts "  rvmsudo rake deploy:systemd_service --stage=#{config[:stage]}"
-    puts "\nStep 4: Activate"
-    puts "  sudo systemctl daemon-reload"
-    puts "  sudo systemctl enable #{config[:service]}"
-    puts "  sudo systemctl start #{config[:service]}"
-    puts "  sudo systemctl status #{config[:service]}"
-    puts "\n" + "=" * 60
-    puts "All stages:"
-    puts "  rvmsudo rake deploy:all --stage=prod"
-    puts "  rvmsudo rake deploy:all --stage=test"
-    puts "  rvmsudo rake deploy:all --stage=dev"
+    puts "\nDeploy a stage:"
+    puts "  rvmsudo rake deploy:dev"
+    puts "  rvmsudo rake deploy:test"
+    puts "  rvmsudo rake deploy:prod"
+    puts "\nDeploy all stages:"
+    puts "  rvmsudo rake deploy:all"
+    puts "\nSystemd services:"
+    puts "  rvmsudo rake deploy:systemd_dev"
+    puts "  rvmsudo rake deploy:systemd_test"
+    puts "  rvmsudo rake deploy:systemd_prod"
+    puts "\nOther:"
+    puts "  rvmsudo rake deploy:nginx_config  # Deploy nginx config"
     puts "=" * 60
   end
 end
