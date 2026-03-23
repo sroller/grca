@@ -414,6 +414,143 @@ module Grca
       end.sort_by { |r| r[:station_name] }
     end
 
+    # Get reservoir data across all stations (elevation and stage with historical values)
+    def get_reservoir_data_across_stations(timezone = nil)
+      stations = get_all_stations_with_coords
+      return [] if stations.empty?
+
+      station_nos = stations.map { |s| s[:station_no] }.join(",")
+      all_timeseries = get_timeseries_list(station_nos)
+
+      # Find elevation and stage timeseries per station
+      station_elevation_ts = {}
+      station_stage_ts = {}
+
+      all_timeseries.each do |ts|
+        next unless ts[:ts_name]&.include?("NRT") || ts[:ts_name]&.include?("PRODUCTION")
+
+        param_name = ts[:param_type_name]&.upcase
+        param_longname = ts[:param_longname]&.downcase || ""
+
+        # Match elevation/reservoir level
+        if param_name == "ELEV" || param_longname.include?("elevation") || param_longname.include?("reservoir level")
+          station_elevation_ts[ts[:station_no]] ||= []
+          station_elevation_ts[ts[:station_no]] << ts
+        end
+
+        # Match stage
+        unless param_name == "H" || param_name == "HG" || param_longname.include?("stage") || param_longname.include?("water level")
+          next
+        end
+        # Skip if this is elevation
+        next if param_longname.include?("elevation") || param_longname.include?("reservoir level")
+
+        station_stage_ts[ts[:station_no]] ||= []
+        station_stage_ts[ts[:station_no]] << ts
+      end
+
+      # Build results
+      results = []
+      stations.each do |station|
+        elevation_ts_list = station_elevation_ts[station[:station_no]]
+        stage_ts_list = station_stage_ts[station[:station_no]]
+
+        next unless elevation_ts_list || stage_ts_list
+
+        result = {
+          station_name: station[:name],
+          station_no: station[:station_no],
+          latitude: station[:latitude],
+          longitude: station[:longitude]
+        }
+
+        # Get elevation data
+        if elevation_ts_list
+          elev_ts = elevation_ts_list.find { |ts| ts[:ts_name]&.include?("NRT") } || elevation_ts_list.first
+          elev_data = get_historical_values(elev_ts[:ts_id], timezone)
+          if elev_data
+            result[:elevation_current] = elev_data[:current]
+            result[:elevation_24h] = elev_data["24h"]
+            result[:elevation_72h] = elev_data["72h"]
+            result[:elevation_7d] = elev_data["7d"]
+            result[:elevation_unit] = elev_ts[:unit] || "m"
+            result[:timestamp] = elev_data[:latest_timestamp]
+          end
+        end
+
+        # Get stage data
+        if stage_ts_list
+          stage_ts = stage_ts_list.find { |ts| ts[:ts_name]&.include?("NRT") } || stage_ts_list.first
+          stage_data = get_historical_values(stage_ts[:ts_id], timezone)
+          if stage_data
+            result[:stage_current] = stage_data[:current]
+            result[:stage_24h] = stage_data["24h"]
+            result[:stage_72h] = stage_data["72h"]
+            result[:stage_7d] = stage_data["7d"]
+            result[:stage_unit] = stage_ts[:unit] || "m"
+            result[:timestamp] ||= stage_data[:latest_timestamp]
+          end
+        end
+
+        # Only include if we have at least one measurement
+        next unless result[:elevation_current] || result[:stage_current]
+
+        results << result
+      end
+
+      # Filter invalid and sort
+      results.select do |r|
+        !stale_timestamp?(r[:timestamp])
+      end.sort_by { |r| r[:station_name] }
+    end
+
+    # Get historical values at specific time points
+    def get_historical_values(ts_id, timezone = nil)
+      data = get_timeseries_values_for_period(ts_id, "P7D", timezone)
+      return nil if data.empty?
+
+      # Filter invalid values
+      data = data.select do |row|
+        val = row[1].to_f
+        val >= -1000 && val <= 2000
+      end
+      return nil if data.empty?
+
+      # Sort by timestamp (newest first)
+      data = data.sort_by { |row| row[0] }.reverse
+
+      now = Time.now.utc
+      historical = {}
+
+      periods = {
+        "24h" => 24 * 60 * 60,
+        "72h" => 72 * 60 * 60,
+        "7d" => 7 * 24 * 60 * 60
+      }
+
+      # Current value (most recent)
+      current = data.first
+      historical[:current] = current[1].to_f.round(3)
+      historical[:latest_timestamp] = current[0]
+
+      # Historical values at specific time points
+      periods.each do |label, seconds|
+        target_time = now - seconds
+        # Find the closest value to the target time
+        closest = data.min_by do |row|
+          timestamp = begin
+            Time.parse(row[0])
+          rescue StandardError
+            next Float::INFINITY
+          end
+          (timestamp - target_time).abs
+        end
+        historical[label] = closest[1].to_f.round(3) if closest
+      end
+
+      historical
+    end
+
     private
 
     def stale_timestamp?(timestamp_str)

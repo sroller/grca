@@ -57,6 +57,15 @@ module Grca
       erb :precipitation
     end
 
+    # Reservoir overview route (must come before generic /parameter/:type)
+    get "/parameter/reservoirs" do
+      timezone = params[:timezone]
+      @reservoir_data = data_service.get_reservoir_data_across_stations(timezone)
+      @parameter_name = "Reservoirs"
+
+      erb :reservoirs
+    end
+
     # Parameter overview routes
     get "/parameter/:type" do
       param_type = params[:type]
