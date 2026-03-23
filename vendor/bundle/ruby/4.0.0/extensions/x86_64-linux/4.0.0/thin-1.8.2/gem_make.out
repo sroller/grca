@@ -1,0 +1,94 @@
+current directory: /home/steffenr/src/Claude/grca/vendor/bundle/ruby/4.0.0/gems/thin-1.8.2/ext/thin_parser
+/usr/local/rvm/rubies/ruby-4.0.1/bin/ruby extconf.rb
+checking for main() in -lc... yes
+creating Makefile
+
+current directory: /home/steffenr/src/Claude/grca/vendor/bundle/ruby/4.0.0/gems/thin-1.8.2/ext/thin_parser
+make -j9 DESTDIR\= sitearchdir\=./.gem.20260316-1049780-e5421s sitelibdir\=./.gem.20260316-1049780-e5421s clean
+
+current directory: /home/steffenr/src/Claude/grca/vendor/bundle/ruby/4.0.0/gems/thin-1.8.2/ext/thin_parser
+make -j9 DESTDIR\= sitearchdir\=./.gem.20260316-1049780-e5421s sitelibdir\=./.gem.20260316-1049780-e5421s
+compiling parser.c
+compiling thin.c
+parser.c:31:18: warning: ‘http_parser_en_main’ defined but not used [-Wunused-const-variable=]
+   31 | static const int http_parser_en_main = 1;
+      |                  ^~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_alloc’:
+thin.c:244:3: warning: ‘rb_data_object_wrap_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  244 |   obj = Data_Wrap_Struct(klass, NULL, Thin_HttpParser_free, hp);
+      |   ^~~
+In file included from /usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core.h:27,
+                 from /usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/ruby.h:29,
+                 from /usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby.h:38,
+                 from thin.c:7:
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:296:1: note: declared here
+  296 | rb_data_object_wrap_warning(VALUE klass, void *ptr, RUBY_DATA_FUNC mark, RUBY_DATA_FUNC free)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_init’:
+thin.c:259:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  259 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_reset’:
+thin.c:276:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  276 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_finish’:
+thin.c:293:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  293 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_execute’:
+thin.c:324:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  324 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_has_error’:
+thin.c:357:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  357 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_is_finished’:
+thin.c:372:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  372 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Thin_HttpParser_nread’:
+thin.c:388:3: warning: ‘rb_data_object_get_warning’ is deprecated: by TypedData [-Wdeprecated-declarations]
+  388 |   DATA_GET(self, http_parser, http);
+      |   ^~~~~~~~
+/usr/local/rvm/rubies/ruby-4.0.1/include/ruby-4.0.0/ruby/internal/core/rdata.h:328:1: note: declared here
+  328 | rb_data_object_get_warning(VALUE obj)
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+thin.c: In function ‘Init_thin_parser’:
+thin.c:393:6: warning: old-style function definition [-Wold-style-definition]
+  393 | void Init_thin_parser()
+      |      ^~~~~~~~~~~~~~~~
+At top level:
+cc1: note: unrecognized command-line option ‘-Wno-self-assign’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-parentheses-equality’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-self-assign’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-parentheses-equality’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ may have been intended to silence earlier diagnostics
+linking shared-object thin_parser.so
+
+current directory: /home/steffenr/src/Claude/grca/vendor/bundle/ruby/4.0.0/gems/thin-1.8.2/ext/thin_parser
+make -j9 DESTDIR\= sitearchdir\=./.gem.20260316-1049780-e5421s sitelibdir\=./.gem.20260316-1049780-e5421s install
+/usr/bin/install -c -m 0755 thin_parser.so ./.gem.20260316-1049780-e5421s
+
+current directory: /home/steffenr/src/Claude/grca/vendor/bundle/ruby/4.0.0/gems/thin-1.8.2/ext/thin_parser
+make DESTDIR\= sitearchdir\=./.gem.20260316-1049780-e5421s sitelibdir\=./.gem.20260316-1049780-e5421s clean

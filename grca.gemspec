@@ -33,6 +33,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "ostruct", "~> 0.6"
   spec.add_dependency "sinatra", "~> 3.0"
   spec.add_dependency "webrick", "~> 1.8"
+  spec.add_dependency "ruby-lsp", ">= 0.18.0"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

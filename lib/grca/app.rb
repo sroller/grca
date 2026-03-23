@@ -48,6 +48,15 @@ module Grca
       end
     end
 
+    # Precipitation overview route (must come before generic /parameter/:type)
+    get "/parameter/precipitation" do
+      timezone = params[:timezone]
+      @precipitation_data = data_service.get_precipitation_across_stations(timezone)
+      @parameter_name = "Precipitation"
+
+      erb :precipitation
+    end
+
     # Parameter overview routes
     get "/parameter/:type" do
       param_type = params[:type]
@@ -57,15 +66,6 @@ module Grca
       @parameter_name = format_parameter_name(param_type)
 
       erb :parameter
-    end
-
-    # Precipitation overview route
-    get "/parameter/precipitation" do
-      timezone = params[:timezone]
-      @parameter_data = data_service.get_precipitation_across_stations(timezone)
-      @parameter_name = "Precipitation"
-
-      erb :precipitation
     end
 
     # Map view route
