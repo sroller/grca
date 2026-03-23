@@ -11,8 +11,31 @@ RuboCop::RakeTask.new
 
 task default: %i[test rubocop]
 
+# Parse --stage=VALUE from command line
+def parse_stage
+  ARGV.each do |arg|
+    return Regexp.last_match(1) if arg =~ /\A--stage=(.+)\z/
+  end
+  nil
+end
+
 # Deployment tasks
 namespace :deploy do
+  # Stage configuration helper
+  def stage_config
+    stage = parse_stage || ENV.fetch("STAGE", "dev")
+    case stage
+    when "prod"
+      { dir: "/var/www/grca", port: 4567, service: "grca", instance: "prod", stage: stage }
+    when "test"
+      { dir: "/var/www/grca-test", port: 4568, service: "grca-test", instance: "test", stage: stage }
+    when "dev"
+      { dir: "/var/www/grca-dev", port: 4569, service: "grca-dev", instance: "dev", stage: stage }
+    else
+      abort "Error: Unknown stage '#{stage}'. Use: --stage=prod, --stage=test, or --stage=dev"
+    end
+  end
+
   desc "Install all gem dependencies"
   task :install_gems do
     puts "Installing gems system-wide (no vendor/bundle)..."
@@ -29,8 +52,9 @@ namespace :deploy do
   task :nginx_config do
     require "fileutils"
 
+    config = stage_config
     nginx_config = File.join(__dir__, "nginx.example.conf")
-    destination = "/etc/nginx/sites-available/grca"
+    destination = "/etc/nginx/sites-available/#{config[:service]}"
 
     abort "Error: nginx.example.conf not found in project root" unless File.exist?(nginx_config)
 
@@ -60,67 +84,41 @@ namespace :deploy do
     puts "4. Reload nginx: systemctl reload nginx"
   end
 
-  desc "Create systemd service file for GRCA app"
+  desc "Create systemd service file for GRCA app (use --stage=prod|test|dev)"
   task :systemd_service do
     require "fileutils"
 
-    # Detect RVM installation
-    rvm_installed = system("command -v rvm >/dev/null 2>&1")
-    rvm_wrapper_path = "/usr/local/rvm/gems/$(ruby -v | cut -d' ' -f1)/bin/wrapper"
+    config = stage_config
 
-    service_content = if rvm_installed
-                        # Use RVM wrapper for systemd
-                        <<~SERVICE
-                          [Unit]
-                          Description=GRCA Web Application (Thin Server)
-                          After=network.target
-                          #{"  "}
-                          [Service]
-                          Type=simple
-                          User=www-data
-                          Group=www-data
-                          WorkingDirectory=/var/www/grca
-                          Environment="BUNDLE_GEMFILE=/var/www/grca/Gemfile"
-                          Environment="RACK_ENV=production"
-                          # Use RVM wrapper script to run Thin with correct Ruby version
-                          ExecStart=#{rvm_wrapper_path} thin -e production -p 4567 -P /tmp/grca.pid -l /tmp/grca.log start
-                          Restart=always
-                          RestartSec=5
-                          StandardOutput=journal
-                          StandardError=journal
-                          SyslogIdentifier=grca
-                          #{"  "}
-                          [Install]
-                          WantedBy=multi-user.target
-                        SERVICE
-                      else
-                        # Fallback to bundle exec
-                        <<~SERVICE
-                          [Unit]
-                          Description=GRCA Web Application (Thin Server)
-                          After=network.target
-                          #{"  "}
-                          [Service]
-                          Type=simple
-                          User=www-data
-                          Group=www-data
-                          WorkingDirectory=/var/www/grca
-                          Environment="BUNDLE_GEMFILE=/var/www/grca/Gemfile"
-                          Environment="RACK_ENV=production"
-                          # Use Thin for fast, lightweight web serving
-                          ExecStart=/usr/bin/bundle exec thin -e production -p 4567 -P /tmp/grca.pid -l /tmp/grca.log start
-                          Restart=always
-                          RestartSec=5
-                          StandardOutput=journal
-                          StandardError=journal
-                          SyslogIdentifier=grca
-                          #{"  "}
-                          [Install]
-                          WantedBy=multi-user.target
-                        SERVICE
-                      end
+    service_content = <<~SERVICE
+      [Unit]
+      Description=GRCA Web Application - #{config[:stage]} (Thin Server)
+      After=network.target
+      #{ }
+      [Service]
+      Type=simple
+      User=steffenr
+      Group=rvm
+      WorkingDirectory=#{config[:dir]}
+      Environment="BUNDLE_GEMFILE=#{config[:dir]}/Gemfile"
+      Environment="RACK_ENV=production"
+      Environment="GRCA_INSTANCE=#{config[:instance]}"
+      Environment="GRCA_PORT=#{config[:port]}"
+      Environment="GEM_HOME=/usr/local/rvm/gems/ruby-4.0.1"
+      Environment="GEM_PATH=/usr/local/rvm/gems/ruby-4.0.1:/usr/local/rvm/gems/ruby-4.0.1@global"
+      # Source RVM and run thin directly
+      ExecStart=/bin/bash -c 'source /usr/local/rvm/scripts/rvm && cd #{config[:dir]} && bundle exec thin -e production -p #{config[:port]} start'
+      Restart=always
+      RestartSec=5
+      StandardOutput=journal
+      StandardError=journal
+      SyslogIdentifier=#{config[:service]}
+      #{ }
+      [Install]
+      WantedBy=multi-user.target
+    SERVICE
 
-    destination = "/etc/systemd/system/grca.service"
+    destination = "/etc/systemd/system/#{config[:service]}.service"
 
     puts "Creating systemd service file at #{destination}..."
 
@@ -150,11 +148,12 @@ namespace :deploy do
     puts "\nNote: Service configured to use RVM wrapper for Ruby environment." if rvm_installed
   end
 
-  desc "Copy web application files to /var/www/grca"
+  desc "Copy web application files (use --stage=prod|test|dev)"
   task :copy_files do
     require "fileutils"
 
-    destination = "/var/www/grca"
+    config = stage_config
+    destination = config[:dir]
 
     puts "Copying web application files to #{destination}..."
 
@@ -187,6 +186,7 @@ namespace :deploy do
       gem "webrick", "~> 1.8"
       gem "redis", "~> 5.0"
       gem "ostruct", "~> 0.6"
+      gem "logger"
       gem "irb"
     GEMFILE
 
@@ -221,69 +221,54 @@ namespace :deploy do
     end
 
     # Create log directory for Thin logs
-    puts "Creating log directory..."
-    FileUtils.mkdir_p("/var/log/grca")
-    FileUtils.chown_R("www-data", "www-data", "/var/log/grca")
+    log_dir = "/var/log/#{config[:service]}"
+    puts "Creating log directory at #{log_dir}..."
+    FileUtils.mkdir_p(log_dir)
+    FileUtils.chown_R("steffenr", "rvm", log_dir)
 
     # Set proper ownership
-    puts "Setting ownership to www-data..."
-    FileUtils.chown_R("www-data", "www-data", destination)
+    puts "Setting ownership to steffenr:rvm..."
+    FileUtils.chown_R("steffenr", "rvm", destination)
 
     # Make grca_web executable
     FileUtils.chmod(0o755, File.join(destination, "bin", "grca_web"))
 
-    puts "\nWeb application files copied successfully!"
+    puts "\nWeb application files copied to #{destination} successfully!"
+    puts "Stage: #{config[:stage]} | Port: #{config[:port]} | Service: #{config[:service]}"
     puts "\nNext steps:"
-    puts "1. Run: rvmsudo rake deploy:install_gems (in /var/www/grca)"
-    puts "   OR: sudo -E rake deploy:install_gems (preserves your environment)"
-    puts "2. Run: rvmsudo rake deploy:systemd_service"
-    puts "3. Run: rvmsudo rake deploy:nginx_config"
-    puts "4. Configure nginx and enable the site"
-    puts "\nNote: Use 'rvmsudo' instead of 'sudo' to preserve RVM environment,"
-    puts "      or use 'sudo -E' to preserve your environment variables."
+    puts "1. Run: cd #{destination} && rvmsudo rake deploy:install_gems"
+    puts "2. Run: rvmsudo rake deploy:systemd_service --stage=#{config[:stage]}"
+    puts "3. sudo systemctl daemon-reload"
+    puts "4. sudo systemctl enable #{config[:service]}"
+    puts "5. sudo systemctl start #{config[:service]}"
   end
 
-  desc "Complete deployment - runs all deployment tasks"
+  desc "Complete deployment guide (use --stage=prod|test|dev)"
   task :all do
+    config = stage_config
     puts "\n" + "=" * 60
-    puts "DEPLOYMENT GUIDE - Complete Deployment Steps"
+    puts "DEPLOYMENT GUIDE - #{config[:stage].upcase} Stage"
     puts "=" * 60
-    puts "\nThis task requires sudo privileges for system-level operations."
-    puts "\nRVM USERS: Use 'rvmsudo' or 'sudo -E' to preserve your Ruby environment:"
-    puts "  rvmsudo rake deploy:copy_files"
-    puts "  cd /var/www/grca && rvmsudo rake deploy:install_gems"
-    puts "\nSTANDARD SUDO (may not work with RVM):"
-    puts "  sudo rake deploy:copy_files"
-    puts "  cd /var/www/grca && sudo rake deploy:install_gems"
+    puts "\nTarget: #{config[:dir]} | Port: #{config[:port]} | Service: #{config[:service]}"
     puts "\n" + "=" * 60
     puts "Deployment Steps:"
     puts "=" * 60
     puts "\nStep 1: Copy files to deployment location"
-    puts "  rvmsudo rake deploy:copy_files"
-    puts "\nStep 2: Install gems (run from /var/www/grca)"
-    puts "  cd /var/www/grca && rvmsudo rake deploy:install_gems"
+    puts "  rvmsudo rake deploy:copy_files --stage=#{config[:stage]}"
+    puts "\nStep 2: Install gems (run from #{config[:dir]})"
+    puts "  cd #{config[:dir]} && rvmsudo rake deploy:install_gems"
     puts "\nStep 3: Create systemd service"
-    puts "  rvmsudo rake deploy:systemd_service"
-    puts "\nStep 4: Deploy nginx configuration"
-    puts "  rvmsudo rake deploy:nginx_config"
+    puts "  rvmsudo rake deploy:systemd_service --stage=#{config[:stage]}"
+    puts "\nStep 4: Activate"
+    puts "  sudo systemctl daemon-reload"
+    puts "  sudo systemctl enable #{config[:service]}"
+    puts "  sudo systemctl start #{config[:service]}"
+    puts "  sudo systemctl status #{config[:service]}"
     puts "\n" + "=" * 60
-    puts "After deployment:"
-    puts "=" * 60
-    puts "1. Edit /etc/nginx/sites-available/grca to match your domain"
-    puts "2. Enable nginx site: ln -s /etc/nginx/sites-available/grca /etc/nginx/sites-enabled/"
-    puts "3. Test nginx: nginx -t"
-    puts "4. Reload systemd: systemctl daemon-reload"
-    puts "5. Enable service: systemctl enable grca"
-    puts "6. Start service: systemctl start grca"
-    puts "7. Reload nginx: systemctl reload nginx"
-    puts "8. Check status: systemctl status grca"
-    puts "=" * 60
-    puts "\nALTERNATIVE: Manual deployment without RVM"
-    puts "-" * 60
-    puts "If you prefer not to use RVM for the systemd service:"
-    puts "1. Install Ruby system-wide: apt install ruby-full"
-    puts "2. Install gems: sudo gem install thin bundler"
-    puts "3. The systemd service will use bundle exec automatically"
+    puts "All stages:"
+    puts "  rvmsudo rake deploy:all --stage=prod"
+    puts "  rvmsudo rake deploy:all --stage=test"
+    puts "  rvmsudo rake deploy:all --stage=dev"
     puts "=" * 60
   end
 end

@@ -1,34 +1,38 @@
 # GRCA - Grand River Conservation Authority
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 GRCA provides easy access to (near-)realtime sensor data from the Grand River Conservation Authority. This application presents a web interface to view current conditions from stations along the rivers in the Grand River watershed.
 
 ## Features
 
 - Browse all available monitoring stations
 - View current sensor data including:
-  - Water level (HG - Water Level)
-  - Water temperature (TW - Water Temperature)
+  - Water level (stage)
+  - Water temperature
   - Air temperature
-  - Precipitation
-  - And more...
+  - Flow
+  - Precipitation (with 24h, 72h, 7d cumulative columns)
+- Reservoir monitoring (elevation and storage volume with historical deltas)
+- River-based station views: browse data grouped by river (Grand, Speed, Nith, Conestogo)
+- Interactive station map with Leaflet and Google Maps
+- Parameter overview pages across all stations
 
 ## Installation
 
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/[USERNAME]/grca.git
+git clone https://github.com/sroller/grca.git
 cd grca
 bundle install
 ```
+
+Requires Ruby 4.0.1+ with RVM.
 
 ## Usage
 
 ### Running the Web Application
 
-Start the Sinatra web server:
+Start the web server:
 
 ```bash
 bundle exec ruby bin/grca_web
@@ -36,13 +40,29 @@ bundle exec ruby bin/grca_web
 
 The application will be available at `http://localhost:4567`.
 
-### Command Line Interface
+### Deployment
 
-The GRCA gem also provides a command-line interface for fetching station data:
+Three deployment stages are supported: `prod`, `test`, and `dev`.
 
 ```bash
-bundle exec exe/grca
+# Deploy to dev (default)
+rvmsudo rake deploy:copy_files
+
+# Deploy to a specific stage
+rvmsudo rake deploy:copy_files -- --stage=prod
+rvmsudo rake deploy:copy_files -- --stage=test
+
+# Show full deployment guide for a stage
+rake deploy:all -- --stage=prod
 ```
+
+Each stage runs on an isolated port with separate cache directories:
+
+| Stage | Port | Directory | Service |
+|-------|------|-----------|---------|
+| prod  | 4567 | /var/www/grca | grca.service |
+| test  | 4568 | /var/www/grca-test | grca-test.service |
+| dev   | 4569 | /var/www/grca-dev | grca-dev.service |
 
 ## API
 
@@ -54,26 +74,8 @@ This application uses the GRCA KiWIS API:
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.
 
 ```bash
 bundle exec rake test
 ```
-
-To install this gem onto your local machine, run:
-
-```bash
-bundle exec rake install
-```
-
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/grca.
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in this project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/grca/blob/main/CODE_OF_CONDUCT.md).

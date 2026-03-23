@@ -8,7 +8,7 @@ module Grca
   # Cache module supporting Redis (production) and file-based (development) caching
   class Cache
     CACHE_TTL = 45 * 60 # 45 minutes in seconds
-    CACHE_DIR = File.join(Dir.tmpdir, "grca_cache")
+    CACHE_DIR = File.join(Dir.tmpdir, "grca_cache_#{ENV.fetch("GRCA_INSTANCE", "default")}")
 
     class << self
       def enabled?

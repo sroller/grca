@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GRCA - <%= @parameter_name %></title>
+    <title>GRCA - <%= @parameter_name %> by River</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
@@ -42,24 +42,11 @@
         .btn-outline-primary.active {
             background-color: var(--grca-primary);
             border-color: var(--grca-primary);
+            color: white;
         }
         .table th {
             background-color: var(--grca-primary);
             color: white;
-        }
-        .percent-low {
-            color: #dc3545;
-            font-weight: 600;
-        }
-        .percent-normal {
-            color: #198754;
-            font-weight: 600;
-        }
-        .percent-high {
-            color: var(--grca-primary);
-            font-weight: 600;
-        }
-        .table th {
             cursor: pointer;
             user-select: none;
         }
@@ -74,34 +61,70 @@
             content: " ▼";
             font-size: 0.7em;
         }
+        .percent-low {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        .percent-normal {
+            color: #198754;
+            font-weight: 600;
+        }
+        .percent-high {
+            color: var(--grca-primary);
+            font-weight: 600;
+        }
+        .river-badge {
+            font-size: 0.85em;
+            padding: 0.25em 0.6em;
+        }
+        .river-grand { background-color: #0d6efd; color: white; }
+        .river-speed { background-color: #198754; color: white; }
+        .river-nith { background-color: #6f42c1; color: white; }
+        .river-conestogo { background-color: #fd7e14; color: white; }
+        .river-other { background-color: #6c757d; color: white; }
+        .river-group-header {
+            background-color: var(--grca-light) !important;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
             <div class="card-header text-center py-3">
-                <h1 class="h3 mb-0"><%= @parameter_name %></h1>
+                <h1 class="h3 mb-0"><%= @parameter_name %> by River</h1>
             </div>
             <div class="card-body">
-                <nav class="mb-4">
+                <nav class="mb-3">
                     <div class="d-flex flex-wrap justify-content-center gap-2">
                         <a href="<%= url_for('/') %>" class="btn btn-outline-primary btn-sm">Station List</a>
-                        <a href="<%= url_for('/parameter/temperature') %>" class="btn btn-outline-primary btn-sm">Temperature</a>
-                        <a href="<%= url_for('/parameter/water_temperature') %>" class="btn btn-outline-primary btn-sm">Water Temp</a>
-                        <a href="<%= url_for('/parameter/stage') %>" class="btn btn-outline-primary btn-sm">Stage</a>
-                        <a href="<%= url_for('/parameter/flow') %>" class="btn btn-outline-primary btn-sm">Flow</a>
-                        <a href="<%= url_for('/parameter/precipitation') %>" class="btn btn-outline-primary btn-sm">Precipitation</a>
-                        <% if ['flow', 'water_temperature', 'stage'].include?(params[:type]) %>
-                            <a href="<%= url_for('/rivers/' + params[:type] + '?filter=main') %>" class="btn btn-primary btn-sm">View by River</a>
-                        <% end %>
+                        <a href="<%= url_for('/parameter/' + params[:type]) %>" class="btn btn-outline-primary btn-sm">All Stations</a>
+                        <a href="<%= url_for('/rivers/flow') %>" class="btn btn-outline-primary btn-sm <%= @parameter_name == 'Flow' ? 'active' : '' %>">Flow by River</a>
+                        <a href="<%= url_for('/rivers/water_temperature') %>" class="btn btn-outline-primary btn-sm <%= @parameter_name == 'Water Temperature' ? 'active' : '' %>">Water Temp by River</a>
+                        <a href="<%= url_for('/rivers/stage') %>" class="btn btn-outline-primary btn-sm <%= @parameter_name == 'Stage' ? 'active' : '' %>">Stage by River</a>
                     </div>
                 </nav>
+
+                <div class="mb-3 text-center">
+                    <div class="btn-group" role="group" aria-label="Filter options">
+                        <a href="<%= url_for("/rivers/#{params[:type]}?filter=main") %>" class="btn btn-sm <%= @current_filter == 'main' ? 'btn-primary' : 'btn-outline-primary' %>">
+                            Main Rivers Only
+                        </a>
+                        <a href="<%= url_for("/rivers/#{params[:type]}?filter=all") %>" class="btn btn-sm <%= @current_filter == 'all' ? 'btn-primary' : 'btn-outline-primary' %>">
+                            All Stations
+                        </a>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        Main rivers: Grand River, Speed River, Nith River, Conestogo River
+                    </div>
+                </div>
 
                 <% if @parameter_data && !@parameter_data.empty? %>
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
+                                    <th>River</th>
                                     <th>Station</th>
                                     <th>Value</th>
                                     <% if @parameter_data.any? { |d| d[:baseline_percent] } %>
@@ -112,8 +135,23 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <% current_river = nil %>
                                 <% @parameter_data.each do |data| %>
+                                    <% river_name = data[:river_name] || data[:water_body] || "Unknown" %>
+                                    <% if river_name != current_river %>
+                                        <% current_river = river_name %>
+                                    <% end %>
                                     <tr>
+                                        <td>
+                                            <% river_class = case river_name.to_s.downcase
+                                                when /grand/ then 'river-grand'
+                                                when /speed/ then 'river-speed'
+                                                when /nith/ then 'river-nith'
+                                                when /conestogo/ then 'river-conestogo'
+                                                else 'river-other'
+                                            end %>
+                                            <span class="badge river-badge <%= river_class %>"><%= river_name %></span>
+                                        </td>
                                         <td>
                                             <a href="<%= url_for('/station?station=' + URI.encode_www_form_component(data[:station_name])) %>"><%= data[:station_name] %></a>
                                         </td>
@@ -139,8 +177,17 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <div class="mt-3 small text-muted text-center">
+                        <strong>River data source:</strong> OpenStreetMap via Overpass API (stations tagged by nearest waterway within 300m)
+                    </div>
                 <% else %>
-                    <div class="alert alert-info text-center">No data available for this parameter.</div>
+                    <div class="alert alert-info text-center">
+                        No data available for this parameter.
+                        <% if @current_filter == 'main' %>
+                            <br><a href="<%= url_for("/rivers/#{params[:type]}?filter=all") %>">Try viewing all stations</a>
+                        <% end %>
+                    </div>
                 <% end %>
 
                 <div class="text-center mt-4">

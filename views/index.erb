@@ -94,6 +94,17 @@
 
                 <hr class="my-4">
 
+                <div class="parameter-section">
+                    <h5 class="text-center mb-3">Data by River</h5>
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a href="<%= url_for('/rivers/flow?filter=main') %>" class="btn btn-outline-primary">Flow by River</a>
+                        <a href="<%= url_for('/rivers/water_temperature?filter=main') %>" class="btn btn-outline-primary">Water Temp by River</a>
+                        <a href="<%= url_for('/rivers/stage?filter=main') %>" class="btn btn-outline-primary">Stage by River</a>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
                 <div class="text-center">
                     <a href="<%= url_for('/map') %>" class="btn btn-primary btn-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: -3px; margin-right: 5px;">

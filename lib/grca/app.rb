@@ -20,7 +20,7 @@ module Grca
     end
 
     set :bind, "0.0.0.0"
-    set :port, 4567
+    set :port, ENV.fetch("GRCA_PORT", "4567").to_i
     set :public_folder, File.join(File.dirname(__FILE__), "..", "..", "public")
     set :views, File.join(File.dirname(__FILE__), "..", "..", "views")
 
@@ -82,6 +82,25 @@ module Grca
       @parameter_name = "Reservoirs"
 
       erb :reservoirs
+    end
+
+    # River-grouped parameter views (must come before generic /parameter/:type)
+    get "/rivers/:type" do
+      param_type = params[:type]
+      timezone = params[:timezone]
+      filter = params[:filter] # 'all' or 'main' (rivers of interest only)
+
+      @parameter_data = if filter == "main"
+                          data_service.get_parameter_by_river_filtered(param_type, timezone)
+                        else
+                          data_service.get_parameter_by_river(param_type, timezone)
+                        end
+
+      @parameter_name = format_parameter_name(param_type)
+      @show_river_column = true
+      @current_filter = filter || "all"
+
+      erb :rivers
     end
 
     # Parameter overview routes

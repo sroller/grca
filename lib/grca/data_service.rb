@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "api_client"
+require_relative "osm_service"
 
 module Grca
   # Service layer for business logic and data processing
@@ -22,10 +23,10 @@ module Grca
       []
     end
 
-    # Get all stations with coordinates
+    # Get all stations with coordinates and site info
     def get_all_stations_with_coords
-      Cache.fetch("stations_with_coords") do
-        returnfields = "station_name,station_no,station_latitude,station_longitude"
+      Cache.fetch("stations_with_coords_v2") do
+        returnfields = "station_name,station_no,station_latitude,station_longitude,site_name"
         data = @api_client.get_station_list(returnfields)
         return [] unless data.is_a?(Array)
 
@@ -34,7 +35,8 @@ module Grca
             name: row[0],
             station_no: row[1],
             latitude: row[2],
-            longitude: row[3]
+            longitude: row[3],
+            site_name: row[4]
           }
         end
 
@@ -338,6 +340,7 @@ module Grca
           station_no: station[:station_no],
           latitude: station[:latitude],
           longitude: station[:longitude],
+          site_name: station[:site_name],
           value: value[:value],
           unit: ts[:unit] || "",
           timestamp: value[:timestamp],
@@ -433,7 +436,7 @@ module Grca
         param_longname = ts[:param_longname]&.downcase || ""
 
         # Match elevation/reservoir level
-        if param_name == "ELEV" || param_longname.include?("elevation") || param_longname.include?("reservoir level")
+        if param_name == "HK" || param_name == "ELEV" || param_longname.include?("elevation") || param_longname.include?("reservoir level")
           station_elevation_ts[ts[:station_no]] ||= []
           station_elevation_ts[ts[:station_no]] << ts
         end
@@ -520,7 +523,7 @@ module Grca
         param_name = ts[:param_type_name]&.upcase
         param_longname = ts[:param_longname]&.downcase || ""
 
-        if param_name == "ELEV" || param_longname.include?("elevation") || param_longname.include?("reservoir level")
+        if param_name == "HK" || param_name == "ELEV" || param_longname.include?("elevation") || param_longname.include?("reservoir level")
           station_elevation_ts[ts[:station_no]] ||= []
           station_elevation_ts[ts[:station_no]] << ts
         end
@@ -569,7 +572,7 @@ module Grca
         param_name = ts[:param_type_name]&.upcase
         param_longname = ts[:param_longname]&.downcase || ""
 
-        if param_name == "V" || param_name == "VOL" || param_longname.include?("storage") || param_longname.include?("volume")
+        if param_name == "LS" || param_name == "V" || param_name == "VOL" || param_longname.include?("storage") || param_longname.include?("volume")
           station_volume_ts[ts[:station_no]] ||= []
           station_volume_ts[ts[:station_no]] << ts
         end
@@ -607,10 +610,10 @@ module Grca
       data = get_timeseries_values_for_period(ts_id, "P7D", timezone)
       return nil if data.empty?
 
-      # Filter invalid values
+      # Filter invalid values (allow large values for reservoir storage)
       data = data.select do |row|
         val = row[1].to_f
-        val >= -1000 && val <= 2000
+        val >= -1_000_000 && val <= 10_000_000
       end
       return nil if data.empty?
 
@@ -647,6 +650,38 @@ module Grca
       end
 
       historical
+    end
+
+    # Get parameter data across stations, tagged with water body from OSM
+    def get_parameter_by_river(param_type, timezone = nil)
+      osm_service = OsmService.new
+
+      # Get parameter data across stations
+      data = get_parameter_across_stations(param_type, timezone)
+
+      # Tag each station with its water body
+      tagged_data = data.map do |station_data|
+        water_body = osm_service.get_water_body(
+          station_data[:latitude],
+          station_data[:longitude],
+          station_data[:site_name],
+          station_data[:station_name]
+        )
+        river_name = osm_service.extract_river_name(water_body)
+        station_data.merge(
+          water_body: water_body,
+          river_name: river_name,
+          river_of_interest: osm_service.river_of_interest?(water_body)
+        )
+      end
+
+      # Group by river name and sort
+      tagged_data.sort_by { |d| [d[:river_name] || "ZZZ", d[:station_name]] }
+    end
+
+    # Get parameter data filtered to only rivers of interest
+    def get_parameter_by_river_filtered(param_type, timezone = nil)
+      get_parameter_by_river(param_type, timezone).select { |d| d[:river_of_interest] }
     end
 
     private
