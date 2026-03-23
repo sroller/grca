@@ -85,10 +85,10 @@
                                 <tr>
                                     <th>Station</th>
                                     <th>Current</th>
+                                    <th>Δ from 7d</th>
                                     <th>24h ago</th>
                                     <th>72h ago</th>
                                     <th>7d ago</th>
-                                    <th>Δ from 7d</th>
                                     <th>Location</th>
                                 </tr>
                             </thead>
@@ -98,12 +98,12 @@
                                         <td>
                                             <a href="<%= url_for("/station?station=#{URI.encode_www_form_component(data[:station_name])}") %>"><%= data[:station_name] %></a>
                                         </td>
+                                        <% diff_7d = data[:current].to_f - data[:value_7d].to_f %>
                                         <td class="fw-bold"><%= format_value(data[:current]) %> <%= format_unit(data[:unit]) %></td>
+                                        <td class="<%= diff_7d >= 0 ? 'text-success' : 'text-danger' %>"><%= diff_7d >= 0 ? '+' : '' %><%= format_value(diff_7d.round(3)) %> <%= format_unit(data[:unit]) %></td>
                                         <td><%= format_value(data[:value_24h]) %> <%= format_unit(data[:unit]) %></td>
                                         <td><%= format_value(data[:value_72h]) %> <%= format_unit(data[:unit]) %></td>
                                         <td><%= format_value(data[:value_7d]) %> <%= format_unit(data[:unit]) %></td>
-                                        <% diff_7d = data[:current].to_f - data[:value_7d].to_f %>
-                                        <td class="<%= diff_7d >= 0 ? 'text-success' : 'text-danger' %>"><%= diff_7d >= 0 ? '+' : '' %><%= format_value(diff_7d.round(3)) %> <%= format_unit(data[:unit]) %></td>
                                         <td>
                                             <% if data[:latitude] && data[:longitude] %>
                                                 <a href="https://www.google.com/maps?q=<%= data[:latitude] %>,<%= data[:longitude] %>" target="_blank" rel="noopener noreferrer">Map</a>
